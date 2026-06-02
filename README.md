@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/header.png" alt="Grok Build CLI Utilities" width="160" />
+</p>
+
 # grok-build-cli-utilities
 
 **Amazing CLI utilities for [Grok Build](https://x.ai) by Cobus Greyling.**
