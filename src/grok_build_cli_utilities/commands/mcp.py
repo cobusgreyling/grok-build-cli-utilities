@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 try:
     import tomli
@@ -12,7 +11,6 @@ except ImportError:
     tomli = None  # type: ignore[assignment]
 
 import typer
-from rich.table import Table
 
 from ..utils.common import (
     console,
@@ -34,19 +32,20 @@ def _load_config(grok_home: Path) -> dict:
     try:
         with open(cfg, "rb") as f:
             if tomli is not None:
-                return tomli.load(f)
+                return tomli.load(f)  # type: ignore[no-any-return]
             else:
                 # very naive toml reader for name = "value" under [mcp_servers.xxx]
                 # sufficient for the doctor/list use case
-                data: dict = {}
-                current = None
-                for line in f:
-                    line = line.decode("utf-8", errors="ignore").strip()
+                data: dict[str, dict] = {}
+                current: str | None = None
+                text = f.read().decode("utf-8", errors="ignore")
+                for raw in text.splitlines():
+                    line = raw.strip()
                     if line.startswith("[mcp_servers."):
                         current = line[1:-1].split(".", 1)[1]
                         data.setdefault(current, {})
                     elif "=" in line and current:
-                        k, v = [x.strip().strip('"\'') for x in line.split("=", 1)]
+                        k, v = [x.strip().strip("\"'") for x in line.split("=", 1)]
                         data[current][k] = v
                 return {"mcp_servers": data}
     except Exception:
@@ -78,7 +77,9 @@ def list_mcp(ctx: typer.Context) -> None:
     try:
         out = subprocess.run(
             [str(grok_home / "bin" / "grok"), "mcp", "list"],
-            capture_output=True, text=True, timeout=8
+            capture_output=True,
+            text=True,
+            timeout=8,
         )
         if out.returncode == 0 and out.stdout.strip():
             console.print("\n[bold]grok mcp list output:[/bold]")
@@ -92,7 +93,9 @@ def doctor(ctx: typer.Context) -> None:
     """Health check MCP servers (config presence + basic reachability hints)."""
     grok_home = get_grok_home(ctx.obj.get("grok_home") if ctx.obj else None)
     cfg = _load_config(grok_home)
-    mcp_section: dict = cfg.get("mcp_servers", {}) if isinstance(cfg.get("mcp_servers"), dict) else {}
+    mcp_section: dict = (
+        cfg.get("mcp_servers", {}) if isinstance(cfg.get("mcp_servers"), dict) else {}
+    )
 
     if not mcp_section:
         warn("No MCP servers configured.")
@@ -108,6 +111,7 @@ def doctor(ctx: typer.Context) -> None:
             if cmd:
                 # very light check: does the binary exist on PATH?
                 import shutil
+
                 exe = cmd.split()[0]
                 if shutil.which(exe):
                     success(f"  command '{exe}' found on PATH")
@@ -132,7 +136,9 @@ def test_server(
     try:
         out = subprocess.run(
             [str(grok_home / "bin" / "grok"), "mcp", "details", name],
-            capture_output=True, text=True, timeout=12
+            capture_output=True,
+            text=True,
+            timeout=12,
         )
         if out.returncode == 0:
             success(f"grok mcp details for {name}:")
@@ -149,29 +155,31 @@ def test_server(
 def add_example(
     ctx: typer.Context,
     name: str = typer.Argument(..., help="Short name for the server"),
-    kind: str = typer.Option("filesystem", "--kind", help="Example kind: filesystem | github | sqlite"),
+    kind: str = typer.Option(
+        "filesystem", "--kind", help="Example kind: filesystem | github | sqlite"
+    ),
 ) -> None:
     """Append a well-known example MCP server config (you must edit paths/tokens)."""
     grok_home = get_grok_home(ctx.obj.get("grok_home") if ctx.obj else None)
     cfg_path = grok_home / "config.toml"
 
     examples = {
-        "filesystem": f'''
+        "filesystem": f"""
 [mcp_servers.{name}]
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/dir"]
-''',
-        "github": f'''
+""",
+        "github": f"""
 [mcp_servers.{name}]
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-github"]
 env = {{ GITHUB_PERSONAL_ACCESS_TOKEN = "ghp_xxx" }}
-''',
-        "sqlite": f'''
+""",
+        "sqlite": f"""
 [mcp_servers.{name}]
 command = "uvx"
 args = ["mcp-server-sqlite", "--db-path", "/tmp/example.db"]
-''',
+""",
     }
 
     if kind not in examples:

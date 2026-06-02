@@ -4,20 +4,22 @@ from __future__ import annotations
 
 import hashlib
 import json
-import shutil
 import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 import typer
-from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
+from rich.progress import Progress
 
 from ..utils.common import (
     console,
     error,
     get_grok_home,
     get_sessions_dir,
+    info,
+    make_table,
+    Panel,
     success,
     warn,
 )
@@ -36,14 +38,21 @@ def _hash_file(p: Path) -> str:
     return h.hexdigest()
 
 
-def _gather_paths(grok_home: Path, include_sessions: bool, project_filter: Optional[str]) -> list[tuple[Path, Path]]:
+def _gather_paths(
+    grok_home: Path, include_sessions: bool, project_filter: Optional[str]
+) -> list[tuple[Path, Path]]:
     """Return (src_abs, arcname_rel) pairs."""
     items: list[tuple[Path, Path]] = []
 
     # core config & state (always)
     for name in [
-        "config.toml", "user-settings.json", "settings.json",
-        "auth.json", "models_cache.json", "CHANGELOG.md", "version.json",
+        "config.toml",
+        "user-settings.json",
+        "settings.json",
+        "auth.json",
+        "models_cache.json",
+        "CHANGELOG.md",
+        "version.json",
     ]:
         p = grok_home / name
         if p.exists():
@@ -88,9 +97,18 @@ def _gather_paths(grok_home: Path, include_sessions: bool, project_filter: Optio
 @app.command("create")
 def create_backup(
     ctx: typer.Context,
-    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output path (default: ~/grok-backups/backup-YYYYMMDD-HHMMSS.tar.gz)"),
-    include_sessions: bool = typer.Option(False, "--include-sessions", help="Include ALL session data (can be huge)"),
-    projects: Optional[str] = typer.Option(None, "--projects", help="Comma separated project substrings (with --include-sessions)"),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output path (default: ~/grok-backups/backup-YYYYMMDD-HHMMSS.tar.gz)",
+    ),
+    include_sessions: bool = typer.Option(
+        False, "--include-sessions", help="Include ALL session data (can be huge)"
+    ),
+    projects: Optional[str] = typer.Option(
+        None, "--projects", help="Comma separated project substrings (with --include-sessions)"
+    ),
     compress: bool = typer.Option(True, "--compress/--no-compress"),
 ) -> None:
     """Create a timestamped, manifest-backed archive of your Grok state."""
@@ -124,17 +142,19 @@ def create_backup(
         "version": "1",
     }
 
-    with tarfile.open(out_path, mode) as tar, Progress() as prog:
+    with tarfile.open(out_path, mode) as tar, Progress() as prog:  # type: ignore[call-overload]
         task = prog.add_task("Backing up...", total=len(items))
         for src, arc in items:
             try:
                 tar.add(src, arcname=str(arc))
                 h = _hash_file(src) if src.is_file() else ""
-                manifest["files"].append({
-                    "path": str(arc),
-                    "size": src.stat().st_size if src.exists() else 0,
-                    "sha256": h,
-                })
+                manifest["files"].append(
+                    {
+                        "path": str(arc),
+                        "size": src.stat().st_size if src.exists() else 0,
+                        "sha256": h,
+                    }
+                )
             except Exception as e:
                 warn(f"Skipped {src}: {e}")
             prog.advance(task)
@@ -144,7 +164,7 @@ def create_backup(
     mf_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
     # append manifest to tar as well
-    with tarfile.open(out_path, "a:gz" if compress else "a") as tar:
+    with tarfile.open(out_path, "a:gz" if compress else "a") as tar:  # type: ignore[call-overload]
         tar.add(mf_path, arcname=MANIFEST_NAME)
 
     success(f"Backup created: {out_path}")
@@ -156,9 +176,13 @@ def create_backup(
 def restore_backup(
     ctx: typer.Context,
     archive: Path = typer.Argument(..., exists=True, help="Path to grok-backup-*.tar.gz"),
-    dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Show plan only (safe default)"),
+    dry_run: bool = typer.Option(
+        True, "--dry-run/--no-dry-run", help="Show plan only (safe default)"
+    ),
     force: bool = typer.Option(False, "--force", help="Overwrite existing files without asking"),
-    target: Optional[Path] = typer.Option(None, "--target", help="Restore into different Grok home (advanced)"),
+    target: Optional[Path] = typer.Option(
+        None, "--target", help="Restore into different Grok home (advanced)"
+    ),
 ) -> None:
     """Restore from backup (defaults to dry-run for safety)."""
     grok_home = target or get_grok_home(ctx.obj.get("grok_home") if ctx.obj else None)
@@ -169,7 +193,7 @@ def restore_backup(
 
     manifest = None
     try:
-        with tarfile.open(archive, "r:*") as tar:
+        with tarfile.open(archive, "r:*") as tar:  # type: ignore[call-overload]
             if MANIFEST_NAME in tar.getnames():
                 mf = tar.extractfile(MANIFEST_NAME)
                 if mf:
@@ -178,32 +202,36 @@ def restore_backup(
         pass
 
     if manifest:
-        console.print(Panel.fit(
-            f"Backup from: {manifest.get('created_at')}\n"
-            f"Original home: {manifest.get('grok_home')}\n"
-            f"Files: {len(manifest.get('files', []))}\n"
-            f"Sessions included: {manifest.get('include_sessions')}",
-            title="Backup Manifest",
-        ))
+        console.print(
+            Panel.fit(
+                f"Backup from: {manifest.get('created_at')}\n"
+                f"Original home: {manifest.get('grok_home')}\n"
+                f"Files: {len(manifest.get('files', []))}\n"
+                f"Sessions included: {manifest.get('include_sessions')}",
+                title="Backup Manifest",
+            )
+        )
 
     if dry_run:
         console.print("[bold yellow]DRY-RUN[/bold yellow] — would extract into", grok_home)
-        with tarfile.open(archive, "r:*") as tar:
+        with tarfile.open(archive, "r:*") as tar:  # type: ignore[call-overload]
             for m in tar.getmembers()[:12]:
                 if m.name == MANIFEST_NAME:
                     continue
                 console.print(f"  {m.name}")
             if len(tar.getmembers()) > 13:
-                console.print(f"  ... +{len(tar.getmembers())-13} more")
+                console.print(f"  ... +{len(tar.getmembers()) - 13} more")
         console.print("Re-run with [bold]--no-dry-run[/bold] to perform restore.")
         return
 
-    if not force and not typer.confirm(f"Restore will write into {grok_home}. Continue?", default=False):
+    if not force and not typer.confirm(
+        f"Restore will write into {grok_home}. Continue?", default=False
+    ):
         error("Aborted")
         raise typer.Exit(1)
 
     grok_home.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(archive, "r:*") as tar:
+    with tarfile.open(archive, "r:*") as tar:  # type: ignore[call-overload]
         # filter out manifest
         members = [m for m in tar.getmembers() if m.name != MANIFEST_NAME]
         tar.extractall(grok_home, members=members)

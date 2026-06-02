@@ -14,9 +14,8 @@ import typer
 from dateutil import parser as date_parser
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import Progress
 from rich.table import Table
-from rich.text import Text
 
 console = Console()
 
@@ -26,7 +25,7 @@ DEFAULT_GROK_HOME = Path.home() / ".grok"
 
 def get_grok_home(custom: Optional[Path] = None) -> Path:
     """Discover Grok home directory.
-    
+
     Priority:
     1. Explicit --grok-home flag
     2. GROK_HOME env var
@@ -46,9 +45,10 @@ def get_sessions_dir(grok_home: Path) -> Path:
 
 def get_skills_dirs(grok_home: Path) -> list[tuple[str, Path]]:
     """Return (scope, path) for skill discovery locations in priority order."""
+    repo_root = find_repo_root()
     return [
         ("local", Path.cwd() / ".grok" / "skills"),
-        ("repo", find_repo_root() / ".grok" / "skills" if find_repo_root() else Path()),
+        ("repo", repo_root / ".grok" / "skills" if repo_root else Path()),
         ("user", grok_home / "skills"),
         ("claude", Path.home() / ".claude" / "skills"),
         ("cursor", Path.home() / ".cursor" / "skills"),
@@ -87,6 +87,7 @@ def parse_timestamp(ts: Any) -> Optional[datetime]:
 @dataclass
 class SessionSummary:
     """Parsed session summary.json + derived info."""
+
     id: str
     cwd: str
     created_at: Optional[datetime]

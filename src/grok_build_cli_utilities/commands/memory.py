@@ -3,21 +3,21 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
 from ..utils.common import (
     console,
-    error,
     get_grok_home,
     info,
     make_table,
-    success,
+    Panel,
     warn,
 )
 
-app = typer.Typer(help="Inspect, search and curate Grok's cross-session memory", no_args_is_help=True)
+app = typer.Typer(
+    help="Inspect, search and curate Grok's cross-session memory", no_args_is_help=True
+)
 
 
 def _memory_root(grok_home: Path) -> Path:
@@ -61,13 +61,15 @@ def memory_stats(ctx: typer.Context) -> None:
     index = root / "index.sqlite"  # may be named differently; grok uses internal
     idx_size = index.stat().st_size if index.exists() else 0
 
-    console.print(Panel.fit(
-        f"Memory root: {root}\n"
-        f"Markdown files: {len(md_files)}\n"
-        f"Total content size: {total_bytes / 1024:.1f} KiB\n"
-        f"Index present: {'yes (' + str(idx_size) + ' B)' if idx_size else 'no (or different name)'}",
-        title="Memory Stats",
-    ))
+    console.print(
+        Panel.fit(
+            f"Memory root: {root}\n"
+            f"Markdown files: {len(md_files)}\n"
+            f"Total content size: {total_bytes / 1024:.1f} KiB\n"
+            f"Index present: {'yes (' + str(idx_size) + ' B)' if idx_size else 'no (or different name)'}",
+            title="Memory Stats",
+        )
+    )
 
 
 @app.command("search")
@@ -90,7 +92,7 @@ def search_memory(
             if query.lower() in txt.lower():
                 # grab a snippet
                 idx = txt.lower().find(query.lower())
-                snip = txt[max(0, idx - 30): idx + 80].replace("\n", " ")
+                snip = txt[max(0, idx - 30) : idx + 80].replace("\n", " ")
                 hits.append((md.relative_to(root), snip))
                 if len(hits) >= limit:
                     break
@@ -115,4 +117,6 @@ def memory_paths(ctx: typer.Context) -> None:
     console.print("Global:     ", root / "MEMORY.md")
     console.print("Workspace:  ", root / "<project-slug>-<hash>/MEMORY.md")
     console.print("Sessions:   ", root / "<project-slug>-<hash>/sessions/")
-    console.print("\nUse [bold]grok memory edit[/bold] (built-in) or your $EDITOR on the paths above.")
+    console.print(
+        "\nUse [bold]grok memory edit[/bold] (built-in) or your $EDITOR on the paths above."
+    )

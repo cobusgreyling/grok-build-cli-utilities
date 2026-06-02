@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -15,7 +14,6 @@ from ..utils.common import (
     iter_sessions,
     make_table,
     success,
-    warn,
 )
 
 app = typer.Typer(help="Worktree + Grok session correlation and cleanup", no_args_is_help=True)
@@ -25,7 +23,9 @@ app = typer.Typer(help="Worktree + Grok session correlation and cleanup", no_arg
 def list_worktrees(ctx: typer.Context) -> None:
     """List git worktrees in current repo + any associated Grok sessions."""
     try:
-        out = subprocess.check_output(["git", "worktree", "list", "--porcelain"], text=True, stderr=subprocess.DEVNULL)
+        out = subprocess.check_output(
+            ["git", "worktree", "list", "--porcelain"], text=True, stderr=subprocess.DEVNULL
+        )
     except Exception:
         error("Not in a git repo or git worktree list failed")
         raise typer.Exit(1)
@@ -36,17 +36,20 @@ def list_worktrees(ctx: typer.Context) -> None:
     # very rough: match session cwds that look like worktrees under this repo
     repo_root = None
     try:
-        repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
+        repo_root = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], text=True
+        ).strip()
     except Exception:
         pass
 
-    wt_lines = [l for l in out.splitlines() if l.startswith("worktree ")]
+    wt_lines = [line for line in out.splitlines() if line.startswith("worktree ")]
     t = make_table("Git Worktrees + Grok Activity", ["Path", "Grok Sessions", "Last Grok Use"])
 
     for line in wt_lines:
         wt_path = line.split(" ", 1)[1]
         matching = [s for s in sessions if s.cwd.startswith(wt_path) or wt_path.startswith(s.cwd)]
-        last = max((s.last_active_at for s in matching if s.last_active_at), default=None)
+        lasts = [s.last_active_at for s in matching if s.last_active_at]
+        last = max(lasts) if lasts else None
         t.add_row(
             wt_path,
             str(len(matching)),
@@ -82,7 +85,7 @@ def prune_orphaned(
     for o in orphans[:10]:
         console.print(f"  {o.id[:8]}  {o.cwd}")
     if len(orphans) > 10:
-        console.print(f"  + {len(orphans)-10} more")
+        console.print(f"  + {len(orphans) - 10} more")
 
     if dry_run:
         console.print("[yellow]DRY RUN[/yellow] — nothing deleted. Use --no-dry-run to remove.")
@@ -93,6 +96,7 @@ def prune_orphaned(
         raise typer.Exit(1)
 
     import shutil
+
     count = 0
     for o in orphans:
         try:
@@ -111,6 +115,7 @@ def worktree_stats(ctx: typer.Context) -> None:
 
     # group by "top level project dir" heuristically
     from collections import defaultdict
+
     buckets: defaultdict[str, list] = defaultdict(list)
     for s in sessions:
         key = s.cwd
@@ -119,6 +124,12 @@ def worktree_stats(ctx: typer.Context) -> None:
 
     t = make_table("Session Activity by CWD", ["CWD", "# Sessions", "Total Msgs", "Most Recent"])
     for cwd, ss in sorted(buckets.items(), key=lambda kv: -len(kv[1]))[:15]:
-        recent = max((s.last_active_at or s.created_at for s in ss if s.last_active_at or s.created_at), default=None)
-        t.add_row(cwd[:50], str(len(ss)), str(sum(s.num_messages for s in ss)), str(recent)[:10] if recent else "")
+        actives = [s.last_active_at or s.created_at for s in ss if s.last_active_at or s.created_at]
+        recent = max(actives) if actives else None
+        t.add_row(
+            cwd[:50],
+            str(len(ss)),
+            str(sum(s.num_messages for s in ss)),
+            str(recent)[:10] if recent else "",
+        )
     console.print(t)

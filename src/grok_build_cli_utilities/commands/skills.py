@@ -7,13 +7,13 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-from rich.table import Table
 
 from ..utils.common import (
     console,
     error,
     get_grok_home,
     make_table,
+    Panel,
     success,
     warn,
 )
@@ -44,10 +44,21 @@ def list_skills(
 
     if json_out:
         import json
-        console.print(json.dumps(
-            [{"name": s.name, "scope": s.scope, "path": str(s.path), "desc": s.description[:80]} for s in skills],
-            indent=2,
-        ))
+
+        console.print(
+            json.dumps(
+                [
+                    {
+                        "name": s.name,
+                        "scope": s.scope,
+                        "path": str(s.path),
+                        "desc": s.description[:80],
+                    }
+                    for s in skills
+                ],
+                indent=2,
+            )
+        )
         return
 
     if not skills:
@@ -60,10 +71,14 @@ def list_skills(
             f"[bold cyan]{s.name}[/bold cyan]",
             s.scope,
             s.description[:65] + ("…" if len(s.description) > 65 else ""),
-            str(s.path.relative_to(Path.home())) if str(s.path).startswith(str(Path.home())) else str(s.path),
+            str(s.path.relative_to(Path.home()))
+            if str(s.path).startswith(str(Path.home()))
+            else str(s.path),
         )
     console.print(t)
-    console.print("\n[dim]Scopes: local > repo > user > claude/cursor (compat). Higher wins on name collision.[/dim]")
+    console.print(
+        "\n[dim]Scopes: local > repo > user > claude/cursor (compat). Higher wins on name collision.[/dim]"
+    )
 
 
 @app.command("info")
@@ -77,17 +92,19 @@ def info(
         if s.name == name.lower():
             errs = validate_skill(s)
             status = "[green]valid[/green]" if not errs else "[red]INVALID[/red]"
-            console.print(Panel.fit(
-                f"Name: [bold]{s.name}[/bold]\n"
-                f"Scope: {s.scope}\n"
-                f"Path: {s.path}\n"
-                f"Status: {status}\n\n"
-                f"Description:\n{s.description}\n\n"
-                f"Frontmatter keys: {', '.join(s.frontmatter.keys()) or '(none)'}\n"
-                f"Body length: {len(s.content)} chars",
-                title=f"Skill: {s.name}",
-                border_style="cyan" if not errs else "red",
-            ))
+            console.print(
+                Panel.fit(
+                    f"Name: [bold]{s.name}[/bold]\n"
+                    f"Scope: {s.scope}\n"
+                    f"Path: {s.path}\n"
+                    f"Status: {status}\n\n"
+                    f"Description:\n{s.description}\n\n"
+                    f"Frontmatter keys: {', '.join(s.frontmatter.keys()) or '(none)'}\n"
+                    f"Body length: {len(s.content)} chars",
+                    title=f"Skill: {s.name}",
+                    border_style="cyan" if not errs else "red",
+                )
+            )
             if errs:
                 for e in errs:
                     error(f"  • {e}")
@@ -99,8 +116,12 @@ def info(
 def create(
     ctx: typer.Context,
     name: str = typer.Argument(..., help="Skill name (slug)"),
-    description: str = typer.Option(..., "--desc", "-d", prompt=True, help="One-line description for invocation"),
-    local: bool = typer.Option(True, "--local/--user", help="Create in ./.grok/skills (default) or ~/.grok/skills"),
+    description: str = typer.Option(
+        ..., "--desc", "-d", prompt=True, help="One-line description for invocation"
+    ),
+    local: bool = typer.Option(
+        True, "--local/--user", help="Create in ./.grok/skills (default) or ~/.grok/skills"
+    ),
     force: bool = typer.Option(False, "--force", help="Overwrite if exists"),
 ) -> None:
     """Scaffold a new high-quality SKILL.md."""
@@ -121,13 +142,17 @@ def create(
     content = skill_template(name, description)
     md_path.write_text(content, encoding="utf-8")
     success(f"Created {md_path}")
-    console.print("Edit it, then test with [cyan]grok[/cyan] or validate via [bold]grok-utils skills validate[/bold]")
+    console.print(
+        "Edit it, then test with [cyan]grok[/cyan] or validate via [bold]grok-utils skills validate[/bold]"
+    )
 
 
 @app.command("validate")
 def validate(
     ctx: typer.Context,
-    path: Optional[Path] = typer.Argument(None, help="Path to skill dir or SKILL.md (defaults to scan all)"),
+    path: Optional[Path] = typer.Argument(
+        None, help="Path to skill dir or SKILL.md (defaults to scan all)"
+    ),
 ) -> None:
     """Validate one or all skills. Exits non-zero on any error."""
     grok_home = get_grok_home(ctx.obj.get("grok_home") if ctx.obj else None)
@@ -193,7 +218,9 @@ def pack(
 def unpack(
     ctx: typer.Context,
     archive: Path = typer.Argument(..., exists=True, help="The .tar.gz created by pack"),
-    dest: Optional[Path] = typer.Option(None, "--dest", "-d", help="Where to extract (default: ~/.grok/skills)"),
+    dest: Optional[Path] = typer.Option(
+        None, "--dest", "-d", help="Where to extract (default: ~/.grok/skills)"
+    ),
 ) -> None:
     """Unpack a .skill.tar.gz into your user skills dir (or --dest)."""
     grok_home = get_grok_home(ctx.obj.get("grok_home") if ctx.obj else None)

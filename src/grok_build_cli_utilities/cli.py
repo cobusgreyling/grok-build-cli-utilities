@@ -74,13 +74,19 @@ def main(
 
 
 # Register subcommands
-app.add_typer(sessions.app, name="sessions", help="Advanced session browser, search, stats and pruning")
+app.add_typer(
+    sessions.app, name="sessions", help="Advanced session browser, search, stats and pruning"
+)
 app.add_typer(skills.app, name="skills", help="Skill discovery, creation, validation and packaging")
-app.add_typer(backup.app, name="backup", help="Safe, selective backup and restore for your entire Grok state")
+app.add_typer(
+    backup.app, name="backup", help="Safe, selective backup and restore for your entire Grok state"
+)
 app.add_typer(usage.app, name="usage", help="Beautiful usage analytics, reports and trends")
 app.add_typer(mcp.app, name="mcp", help="MCP server inspection, testing and doctor")
 app.add_typer(worktree.app, name="worktree", help="Git worktree + Grok session hygiene tools")
-app.add_typer(memory.app, name="memory", help="Cross-session memory explorer and curator (experimental)")
+app.add_typer(
+    memory.app, name="memory", help="Cross-session memory explorer and curator (experimental)"
+)
 
 
 if __name__ == "__main__":

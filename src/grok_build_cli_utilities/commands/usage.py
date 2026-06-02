@@ -54,7 +54,11 @@ def report(
     if since:
         try:
             cutoff = datetime.fromisoformat(since).replace(tzinfo=timezone.utc)
-            sessions = [s for s in sessions if (s.created_at or datetime.min.replace(tzinfo=timezone.utc)) >= cutoff]
+            sessions = [
+                s
+                for s in sessions
+                if (s.created_at or datetime.min.replace(tzinfo=timezone.utc)) >= cutoff
+            ]
         except Exception:
             warn(f"Ignoring bad --since {since}")
 
@@ -74,17 +78,33 @@ def report(
     rows = []
     for k, ss in groups.items():
         msgs = sum(x.num_messages for x in ss)
-        last = max((x.last_active_at or x.created_at for x in ss if x.last_active_at or x.created_at), default=None)
+        actives: list[datetime] = []
+        for x in ss:
+            dt = x.last_active_at or x.created_at
+            if dt:
+                actives.append(dt)
+        last = max(actives) if actives else None
         rows.append((k, len(ss), msgs, last))
 
     rows.sort(key=lambda r: (-r[1], -r[2]))
 
     if json_out:
         import json
-        console.print(json.dumps(
-            [{"key": r[0], "sessions": r[1], "messages": r[2], "last": r[3].isoformat() if r[3] else None} for r in rows[:top]],
-            indent=2,
-        ))
+
+        console.print(
+            json.dumps(
+                [
+                    {
+                        "key": r[0],
+                        "sessions": r[1],
+                        "messages": r[2],
+                        "last": r[3].isoformat() if r[3] else None,
+                    }
+                    for r in rows[:top]
+                ],
+                indent=2,
+            )
+        )
         return
 
     title = f"Usage by {by} (top {top}, {len(sessions)} total sessions)"
@@ -109,7 +129,9 @@ def report(
     recent = sorted(days.items())[-14:]
     vals = [v for _, v in recent]
     if vals:
-        console.print(f"\n[bold]Recent activity spark (last {len(vals)} days):[/bold] {_sparkline(vals)}  (max {max(vals)})")
+        console.print(
+            f"\n[bold]Recent activity spark (last {len(vals)} days):[/bold] {_sparkline(vals)}  (max {max(vals)})"
+        )
 
 
 @app.command("top-projects")

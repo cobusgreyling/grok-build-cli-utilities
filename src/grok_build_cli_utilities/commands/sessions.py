@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Optional
 
 import typer
@@ -11,7 +10,6 @@ from rich.progress import Progress
 from rich.table import Table
 
 from ..utils.common import (
-    SessionSummary,
     console,
     count_tool_calls,
     error,
@@ -19,14 +17,15 @@ from ..utils.common import (
     format_dt,
     get_grok_home,
     get_sqlite_search_db,
+    info as ui_info,
     iter_sessions,
     load_session_updates,
     make_table,
+    Panel,
     search_sessions_sqlite,
     success,
     warn,
 )
-from ..utils.parsers import iter_skills  # not used here but for symmetry
 
 app = typer.Typer(help="Powerful Grok Build session tools", no_args_is_help=True)
 
@@ -35,7 +34,9 @@ app = typer.Typer(help="Powerful Grok Build session tools", no_args_is_help=True
 def list_sessions(
     ctx: typer.Context,
     limit: int = typer.Option(30, "--limit", "-l", help="Max sessions to show"),
-    project: Optional[str] = typer.Option(None, "--project", "-p", help="Filter by substring in cwd"),
+    project: Optional[str] = typer.Option(
+        None, "--project", "-p", help="Filter by substring in cwd"
+    ),
     model: Optional[str] = typer.Option(None, "--model", "-m", help="Filter by current model"),
     since: Optional[str] = typer.Option(None, "--since", help="ISO date, e.g. 2026-05-01"),
     json_out: bool = typer.Option(False, "--json", help="Output JSON for scripting"),
@@ -59,11 +60,15 @@ def list_sessions(
             error(f"Bad --since date: {since}")
             raise typer.Exit(1)
 
-    sessions.sort(key=lambda s: s.last_active_at or s.created_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    sessions.sort(
+        key=lambda s: s.last_active_at or s.created_at or datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True,
+    )
     sessions = sessions[:limit]
 
     if json_out:
         import json as _json
+
         data = [
             {
                 "id": s.id,
@@ -83,7 +88,10 @@ def list_sessions(
         warn("No sessions found matching filters.")
         return
 
-    t = make_table(f"Sessions ({len(sessions)} shown)", ["ID (short)", "Project / CWD", "Last Active", "Msgs", "Model", "Agent"])
+    t = make_table(
+        f"Sessions ({len(sessions)} shown)",
+        ["ID (short)", "Project / CWD", "Last Active", "Msgs", "Model", "Agent"],
+    )
     for s in sessions:
         short_id = s.id[:8] + "…"
         proj = s.cwd
@@ -98,7 +106,9 @@ def list_sessions(
             s.agent_name[:18] if s.agent_name else "",
         )
     console.print(t)
-    console.print(f"\n[dim]Total scanned: {len(list(iter_sessions(grok_home)))} • Use [bold]grok-utils sessions info <id>[/bold] for details[/dim]")
+    console.print(
+        f"\n[dim]Total scanned: {len(list(iter_sessions(grok_home)))} • Use [bold]grok-utils sessions info <id>[/bold] for details[/dim]"
+    )
 
 
 @app.command("search")
@@ -115,7 +125,9 @@ def search(
     if db:
         results = search_sessions_sqlite(db, query, limit)
         if results:
-            console.print(f"[dim]Using built-in session_search.sqlite FTS ({len(results)} hits)[/dim]")
+            console.print(
+                f"[dim]Using built-in session_search.sqlite FTS ({len(results)} hits)[/dim]"
+            )
 
     if not results:
         # fallback: scan summaries + a bit of content
@@ -124,7 +136,11 @@ def search(
             all_s = list(iter_sessions(grok_home, prog))
         q = query.lower()
         for s in all_s:
-            if q in (s.summary_text or "").lower() or q in s.cwd.lower() or q in s.agent_name.lower():
+            if (
+                q in (s.summary_text or "").lower()
+                or q in s.cwd.lower()
+                or q in s.agent_name.lower()
+            ):
                 results.append({"id": s.id, "cwd": s.cwd, "snippet": (s.summary_text or "")[:160]})
             if len(results) >= limit:
                 break
@@ -161,16 +177,18 @@ def info(
         warn(f"Multiple matches, using most recent: {matches[0].id}")
     s = matches[0]
 
-    console.print(Panel.fit(
-        f"[bold]{s.id}[/bold]\n"
-        f"CWD: [cyan]{s.cwd}[/cyan]\n"
-        f"Created: {format_dt(s.created_at)} ({format_age(s.created_at)})\n"
-        f"Last active: {format_dt(s.last_active_at)}\n"
-        f"Messages: {s.num_messages} (chat: {s.num_chat_messages})\n"
-        f"Model: [green]{s.current_model_id}[/green]   Agent: {s.agent_name or 'default'}",
-        title="Session Details",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold]{s.id}[/bold]\n"
+            f"CWD: [cyan]{s.cwd}[/cyan]\n"
+            f"Created: {format_dt(s.created_at)} ({format_age(s.created_at)})\n"
+            f"Last active: {format_dt(s.last_active_at)}\n"
+            f"Messages: {s.num_messages} (chat: {s.num_chat_messages})\n"
+            f"Model: [green]{s.current_model_id}[/green]   Agent: {s.agent_name or 'default'}",
+            title="Session Details",
+            border_style="cyan",
+        )
+    )
 
     if deep:
         console.print("[dim]Loading updates for tool stats...[/dim]")
@@ -182,7 +200,7 @@ def info(
                 t.add_row(name, str(cnt))
             console.print(t)
         else:
-            info("No tool_call events found in first 5k updates (or very short session).")
+            ui_info("No tool_call events found in first 5k updates (or very short session).")
 
 
 @app.command("stats")
@@ -199,8 +217,14 @@ def stats(ctx: typer.Context) -> None:
     total_msgs = sum(s.num_messages for s in sessions)
     models: dict[str, int] = {}
     projects: dict[str, int] = {}
-    oldest = min((s.created_at for s in sessions if s.created_at), default=None)
-    newest = max((s.last_active_at or s.created_at for s in sessions if s.last_active_at or s.created_at), default=None)
+    createds: list[datetime] = [s.created_at for s in sessions if s.created_at]
+    oldest = min(createds) if createds else None
+    actives: list[datetime] = []
+    for s in sessions:
+        dt = s.last_active_at or s.created_at
+        if dt:
+            actives.append(dt)
+    newest = max(actives) if actives else None
 
     for s in sessions:
         models[s.current_model_id] = models.get(s.current_model_id, 0) + 1
@@ -210,15 +234,17 @@ def stats(ctx: typer.Context) -> None:
     top_models = sorted(models.items(), key=lambda x: -x[1])[:5]
     top_projects = sorted(projects.items(), key=lambda x: -x[1])[:5]
 
-    console.print(Panel(
-        f"Sessions: [bold]{len(sessions)}[/bold]\n"
-        f"Total messages: [bold]{total_msgs}[/bold]\n"
-        f"Date range: {format_dt(oldest)} → {format_dt(newest)}\n\n"
-        f"Top models:\n" + "\n".join(f"  • {m}: {c}" for m, c in top_models) + "\n\n"
-        f"Top projects:\n" + "\n".join(f"  • {p[:55]}: {c}" for p, c in top_projects),
-        title="Session Statistics",
-        border_style="green",
-    ))
+    console.print(
+        Panel(
+            f"Sessions: [bold]{len(sessions)}[/bold]\n"
+            f"Total messages: [bold]{total_msgs}[/bold]\n"
+            f"Date range: {format_dt(oldest)} → {format_dt(newest)}\n\n"
+            f"Top models:\n" + "\n".join(f"  • {m}: {c}" for m, c in top_models) + "\n\n"
+            "Top projects:\n" + "\n".join(f"  • {p[:55]}: {c}" for p, c in top_projects),
+            title="Session Statistics",
+            border_style="green",
+        )
+    )
 
 
 @app.command("prune")
@@ -226,7 +252,9 @@ def prune(
     ctx: typer.Context,
     older_than: str = typer.Option("90d", "--older-than", help="e.g. 30d, 6mo, 1y"),
     project: Optional[str] = typer.Option(None, "--project"),
-    dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Default safe: only show what would be deleted"),
+    dry_run: bool = typer.Option(
+        True, "--dry-run/--no-dry-run", help="Default safe: only show what would be deleted"
+    ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ) -> None:
     """Prune old sessions (DANGEROUS - defaults to dry-run)."""
@@ -262,17 +290,22 @@ def prune(
     for v in victims[:8]:
         console.print(f"  {v.id[:8]}  {format_age(v.last_active_at)}  {v.cwd[:50]}")
     if len(victims) > 8:
-        console.print(f"  ... and {len(victims)-8} more")
+        console.print(f"  ... and {len(victims) - 8} more")
 
     if dry_run:
-        console.print("[bold yellow]DRY RUN[/bold yellow] — nothing deleted. Re-run with --no-dry-run to actually delete.")
+        console.print(
+            "[bold yellow]DRY RUN[/bold yellow] — nothing deleted. Re-run with --no-dry-run to actually delete."
+        )
         return
 
-    if not yes and not typer.confirm(f"Really DELETE {len(victims)} session directories? This is irreversible.", default=False):
+    if not yes and not typer.confirm(
+        f"Really DELETE {len(victims)} session directories? This is irreversible.", default=False
+    ):
         error("Aborted.")
         raise typer.Exit(1)
 
     import shutil
+
     deleted = 0
     for v in victims:
         try:
