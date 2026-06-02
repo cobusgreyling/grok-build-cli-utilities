@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "grok-build-cli-utilities"
+version = "0.1.0"
+description = "Amazing collection of CLI utilities for Grok Build - enhance your Grok Build experience with powerful session, skills, backup, analytics and more tools"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+  {name = "Cobus Greyling", email = "cobusgreyling@users.noreply.github.com"}
+]
+maintainers = [
+  {name = "Cobus Greyling", email = "cobusgreyling@users.noreply.github.com"}
+]
+keywords = [
+  "grok", "grok-build", "cli", "utilities", "ai", "coding", "sessions", 
+  "skills", "backup", "analytics", "mcp", "worktree", "memory"
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Software Development :: User Interfaces",
+  "Topic :: Utilities",
+]
+requires-python = ">=3.10"
+dependencies = [
+  "typer[all]>=0.9.0",
+  "rich>=13.0.0",
+  "pydantic>=2.0.0",
+  "pyyaml>=6.0",
+  "python-dateutil>=2.8.2",
+  "tomli>=2.0.1; python_version < '3.11'",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "pytest-cov>=4.0",
+  "ruff>=0.1.0",
+  "mypy>=1.0",
+]
+
+[project.scripts]
+grok-utils = "grok_build_cli_utilities.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/cobusgreyling/grok-build-cli-utilities"
+Repository = "https://github.com/cobusgreyling/grok-build-cli-utilities"
+Issues = "https://github.com/cobusgreyling/grok-build-cli-utilities/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"grok_build_cli_utilities" = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra -q --strict-markers"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
