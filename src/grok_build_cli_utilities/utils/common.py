@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import sys
+import tarfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -249,3 +251,32 @@ def search_sessions_sqlite(db_path: Path, query: str, limit: int = 50) -> list[d
         return [dict(r) for r in rows]
     except Exception:
         return []
+
+
+def safe_extract_tar(
+    tar: tarfile.TarFile, target_dir: Path, *, members: list[tarfile.TarInfo] | None = None
+) -> None:
+    """Safely extract a tar archive, preventing path traversal attacks (zip slip).
+
+    - On Python >= 3.12 uses the built-in 'data' filter.
+    - On older versions performs an explicit prefix check before extraction.
+    Raises RuntimeError on any attempted traversal.
+    Pass members= to extract a filtered subset (e.g. excluding manifest).
+    """
+    target_dir = target_dir.resolve()
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    to_check = members if members is not None else tar.getmembers()
+    # Pre-check every member (works for all py versions)
+    for member in to_check:
+        if member.name.startswith(("/", "\\")) or ".." in Path(member.name).parts:
+            raise RuntimeError(f"Unsafe tar member (path traversal): {member.name}")
+        dest = (target_dir / member.name).resolve()
+        if not str(dest).startswith(str(target_dir)):
+            raise RuntimeError(f"Unsafe tar member (escapes target): {member.name}")
+
+    # Use modern filter when available (Python 3.12+)
+    if sys.version_info >= (3, 12):
+        tar.extractall(target_dir, members=members, filter="data")
+    else:
+        tar.extractall(target_dir, members=members)

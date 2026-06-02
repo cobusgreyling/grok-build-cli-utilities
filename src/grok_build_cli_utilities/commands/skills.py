@@ -14,6 +14,7 @@ from ..utils.common import (
     get_grok_home,
     make_table,
     Panel,
+    safe_extract_tar,
     success,
     warn,
 )
@@ -234,5 +235,5 @@ def unpack(
             error("Empty archive")
             raise typer.Exit(1)
         root = members[0].name.split("/")[0]
-        tar.extractall(target)
+        safe_extract_tar(tar, target)
     success(f"Unpacked {root} into {target}")

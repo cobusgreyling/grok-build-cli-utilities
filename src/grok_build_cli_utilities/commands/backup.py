@@ -20,6 +20,7 @@ from ..utils.common import (
     info,
     make_table,
     Panel,
+    safe_extract_tar,
     success,
     warn,
 )
@@ -234,9 +235,28 @@ def restore_backup(
     with tarfile.open(archive, "r:*") as tar:  # type: ignore[call-overload]
         # filter out manifest
         members = [m for m in tar.getmembers() if m.name != MANIFEST_NAME]
-        tar.extractall(grok_home, members=members)
+        safe_extract_tar(tar, grok_home, members=members)
 
     success(f"Restored into {grok_home}")
+
+    # Verify hashes from manifest if present (P0 safety improvement)
+    if manifest and manifest.get("files"):
+        verified = 0
+        mismatches = 0
+        for entry in manifest["files"]:
+            p = grok_home / entry.get("path", "")
+            expected = entry.get("sha256", "")
+            if expected and p.exists() and p.is_file():
+                if _hash_file(p) == expected:
+                    verified += 1
+                else:
+                    mismatches += 1
+                    warn(f"Hash mismatch after restore: {entry['path']}")
+        if mismatches == 0 and verified > 0:
+            success(f"Verified {verified} file hash(es) from manifest.")
+        elif mismatches > 0:
+            warn(f"{mismatches} hash mismatch(es) detected after restore!")
+
     warn("You may need to restart any running Grok sessions or re-login.")
 
 
