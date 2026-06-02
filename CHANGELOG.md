@@ -2,10 +2,38 @@
 
 All notable changes to grok-build-cli-utilities will be documented in this file.
 
+## [Unreleased]
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-06-03
+
+
+### Added
+- Top-level `grok-utils doctor` command: environment checks for Grok home, sessions/skills/MCP counts, grok binary presence, writability, backups dir, memory, with `--json` support.
+- `Makefile` with convenient targets: `make lint`, `make cov`, `make build`, `make clean`, `make pre-commit`, `make dev-install` etc. (updates to README + CONTRIBUTING).
+- GitHub release workflow (`.github/workflows/release.yml`) using pypa trusted publishing for PyPI on `v*` tags.
+- `SECURITY.md` documenting safe-by-default design, tar protections, and reporting process.
+- `parse_age_delta()` shared helper in `utils/common.py` (supports d/w/mo/y/h + bare days; used by prune, with tests).
+- Expanded test coverage (JSON paths, prune execute, age delta parser, doctor).
+- Issue/PR templates and pull request template for better contributions.
+- macOS to CI test matrix (ubuntu + macos x py 3.10-3.12).
+
+### Changed
+- Version bumped to 0.3.0.
+- Reduced some bare `except Exception` to more specific exceptions in core utils (iter_sessions, load updates, parsers).
+- Updated pre-commit, packaging, metadata, and docs as part of the 5 improvement sets.
+- `mcp list` delegation is now conditional.
+- README intro and install instructions cleaned up (promote published + pipx).
+- mcp subcommand help text updated (doctor is now top-level).
+
+### Fixed
+- Import/registration for new doctor command.
+- Makefile robustness across python/python3 and PATH differences.
+- Minor test and help text updates for new features.
+
+[0.3.0]: https://github.com/cobusgreyling/grok-build-cli-utilities/compare/0.2.0...v0.3.0
 
 ## [0.2.0] - 2026-06-02
 
@@ -42,4 +70,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Safe-by-default operations, rich tables + progress, --json support, real ~/.grok integration.
 - Basic smoke tests and pyproject setup.
 
+[0.3.0]: https://github.com/cobusgreyling/grok-build-cli-utilities/compare/0.2.0...v0.3.0
 [0.2.0]: https://github.com/cobusgreyling/grok-build-cli-utilities/compare/0.1.0...v0.2.0

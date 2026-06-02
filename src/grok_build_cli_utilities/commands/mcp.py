@@ -73,19 +73,21 @@ def list_mcp(ctx: typer.Context) -> None:
     else:
         info("No [mcp_servers] section in config.toml (or empty)")
 
-    # also try grok mcp list if available
-    try:
-        out = subprocess.run(
-            [str(grok_home / "bin" / "grok"), "mcp", "list"],
-            capture_output=True,
-            text=True,
-            timeout=8,
-        )
-        if out.returncode == 0 and out.stdout.strip():
-            console.print("\n[bold]grok mcp list output:[/bold]")
-            console.print(out.stdout.strip())
-    except Exception:
-        pass
+    # also try grok mcp list if the local grok binary is present (best effort)
+    grok_bin = grok_home / "bin" / "grok"
+    if grok_bin.exists():
+        try:
+            out = subprocess.run(
+                [str(grok_bin), "mcp", "list"],
+                capture_output=True,
+                text=True,
+                timeout=8,
+            )
+            if out.returncode == 0 and out.stdout.strip():
+                console.print("\n[bold]grok mcp list output:[/bold]")
+                console.print(out.stdout.strip())
+        except Exception:
+            pass
 
 
 @app.command("doctor")

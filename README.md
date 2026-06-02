@@ -12,7 +12,7 @@
 
 A powerful, batteries-included collection of command-line tools that make you dramatically more productive with Grok Build.
 
-- 7 carefully crafted utilities
+- 7 carefully crafted utilities + `doctor` diagnostic command
 - Beautiful rich terminal output (tables, progress, sparklines, bars)
 - Safe-by-default (dry-run on anything destructive)
 - Works directly against your real `~/.grok` data
@@ -26,13 +26,19 @@ A powerful, batteries-included collection of command-line tools that make you dr
 ## Installation
 
 ```bash
-# Recommended (once published on PyPI)
+# From PyPI (recommended)
 pip install grok-build-cli-utilities
+# or with pipx for an isolated CLI:
+pipx install grok-build-cli-utilities
+
+# Even better for CLI tools: isolated install with pipx (recommended)
+pipx install grok-build-cli-utilities
 
 # Or from source (latest development)
 git clone https://github.com/cobusgreyling/grok-build-cli-utilities.git
 cd grok-build-cli-utilities
 pip install -e ".[dev]"
+# Then ensure the console script dir is on PATH, or run via `python -m pip ...`
 ```
 
 The command `grok-utils` will be on your PATH.
@@ -46,7 +52,10 @@ grok-utils --help
 
 ---
 
-## The 7 Utilities
+## The 7 Utilities + doctor
+
+> **Tip:** Run `grok-utils doctor` for a quick health check of your Grok Build environment (works with `--grok-home` and `--json`).
+
 
 ### 1. `sessions` — Advanced session browser & manager
 
@@ -175,15 +184,24 @@ cd grok-build-cli-utilities
 pip install -e ".[dev]"
 
 # Quality gates (CI runs the same)
-ruff check .
-ruff format --check .
-mypy src/grok_build_cli_utilities --ignore-missing-imports
-pytest -q --cov=src/grok_build_cli_utilities --cov-report=term-missing
+make lint
+make format   # or make lint after edits
+make typecheck
+make cov
+# or simply: make test
+
+# See Makefile for all targets (lint, cov, build, clean, etc.)
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full development guide, testing expectations, and how to propose changes.
 
 ---
+
+## Screenshots & Examples
+
+Real terminal output is best experienced live (`grok-utils usage report`, `sessions list`, `doctor`, etc.). Placeholder for future captured output:
+
+<!-- TODO: add rich screenshots of tables, sparklines (████░░░░), progress, panels -->
 
 ## Roadmap (ideas)
 

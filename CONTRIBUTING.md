@@ -21,11 +21,13 @@ python -m pip install -e ".[dev]"
 Run these and ensure they pass:
 
 ```bash
-ruff check .
-ruff format --check .
-mypy src/grok_build_cli_utilities --ignore-missing-imports
-pytest -q --cov=src/grok_build_cli_utilities --cov-report=term-missing
+make lint
+make typecheck
+make cov
+# or: make test
 ```
+
+See the Makefile for the full list of convenient targets. The GitHub Actions CI runs equivalent checks.
 
 The GitHub Actions CI runs the exact same checks on every push and PR (Python 3.10–3.12).
 
@@ -66,6 +68,19 @@ Please include:
 - Beautiful, fast, scriptable output.
 - Works against real user `~/.grok` data — no heavy mocks in production code.
 - Minimal dependencies.
+
+## Releasing (maintainers)
+
+1. Update `CHANGELOG.md` under `[Unreleased]` (move to a new dated section when cutting).
+2. Bump version in:
+   - `pyproject.toml`
+   - `src/grok_build_cli_utilities/__init__.py`
+3. `git tag -a vX.Y.Z -m "Release vX.Y.Z"` (follow semver).
+4. `git push origin main --tags`
+5. The `release.yml` workflow will build and publish to PyPI via trusted publishing (configure OIDC on PyPI project settings for this repo + "publish" environment recommended).
+6. After publish, verify `pip install grok-build-cli-utilities==X.Y.Z` and update any docs/badges.
+
+Test first with TestPyPI by temporarily editing the release workflow `repository-url`.
 
 Thanks for helping make Grok Build even more productive!
 

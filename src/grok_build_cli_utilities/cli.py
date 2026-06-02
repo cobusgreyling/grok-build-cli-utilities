@@ -11,6 +11,7 @@ from rich.console import Console
 from . import __version__
 from .commands import (
     backup,
+    doctor,
     mcp,
     memory,
     sessions,
@@ -24,7 +25,7 @@ app = typer.Typer(
     help="""Amazing Grok Build CLI Utilities.
 
 A curated set of power tools for Grok Build users.
-Manage sessions, skills, backups, usage analytics, MCP, worktrees and memory
+Manage sessions, skills, backups, usage analytics, MCP, worktrees, memory and diagnostics
 with beautiful output and safe operations.
 
 Author: Cobus Greyling
@@ -82,10 +83,15 @@ app.add_typer(
     backup.app, name="backup", help="Safe, selective backup and restore for your entire Grok state"
 )
 app.add_typer(usage.app, name="usage", help="Beautiful usage analytics, reports and trends")
-app.add_typer(mcp.app, name="mcp", help="MCP server inspection, testing and doctor")
+app.add_typer(mcp.app, name="mcp", help="MCP server inspection, testing and config helpers")
 app.add_typer(worktree.app, name="worktree", help="Git worktree + Grok session hygiene tools")
 app.add_typer(
     memory.app, name="memory", help="Cross-session memory explorer and curator (experimental)"
+)
+
+# Top-level convenience commands (not a subcommand group)
+app.command("doctor", help="Diagnose your Grok Build environment and grok-utils setup")(
+    doctor.doctor
 )
 
 

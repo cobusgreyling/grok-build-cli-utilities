@@ -1,0 +1,30 @@
+# Control sdist contents (wheel is controlled by packages.find + package-data)
+include pyproject.toml
+include README.md
+include LICENSE
+include CHANGELOG.md
+include CONTRIBUTING.md
+include SECURITY.md
+include .pre-commit-config.yaml
+include .editorconfig
+
+recursive-include src/grok_build_cli_utilities *.py
+recursive-include src/grok_build_cli_utilities *.typed
+recursive-include src/grok_build_cli_utilities py.typed
+
+# Exclude test code, caches, and local dev dirs from source distributions
+prune tests
+prune .github
+prune images
+prune examples
+prune .pytest_cache
+prune .mypy_cache
+global-exclude *.pyc
+global-exclude __pycache__/*
+global-exclude .DS_Store
+prune **/*.egg-info
+prune src/grok_build_cli_utilities.egg-info
+global-exclude *.egg-info
+global-exclude coverage.xml
+global-exclude .coverage
+global-exclude .coverage.*

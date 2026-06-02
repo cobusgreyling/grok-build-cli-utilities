@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a bug in grok-utils
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+        Please fill out the sections below to help us reproduce and fix.
+  - type: input
+    id: version
+    attributes:
+      label: grok-utils version
+      placeholder: "0.2.0"
+      description: "Run `grok-utils --version`"
+    validations:
+      required: true
+  - type: input
+    id: os-python
+    attributes:
+      label: OS + Python version
+      placeholder: "macOS 15.5 + Python 3.12.1"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps / minimal reproduction
+      description: "If possible, use `--grok-home /tmp/fake-grok` + small fixture data."
+      value: |
+        1. `grok-utils ...`
+        2. ...
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log/output/traceback
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues
+        - label: I am willing to contribute a fix (with guidance)

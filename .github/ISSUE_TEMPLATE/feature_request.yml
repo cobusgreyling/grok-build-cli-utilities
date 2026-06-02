@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest a new utility, command or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! This project is primarily maintainer-driven but great ideas are welcome.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature request related to a problem?
+      description: "A clear description of what the problem is."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Describe alternatives you've considered
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context / mock command example
+      value: |
+        grok-utils foo bar --baz
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I have read the README and roadmap
+        - label: I am willing to help implement / test

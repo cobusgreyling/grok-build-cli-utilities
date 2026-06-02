@@ -8,7 +8,7 @@ import sqlite3
 import sys
 import tarfile
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
@@ -137,8 +137,8 @@ def iter_sessions(grok_home: Path, progress: Optional[Progress] = None) -> Itera
                 path=sfile.parent,
                 summary_text=data.get("session_summary", ""),
             )
-        except Exception:
-            # Skip corrupt
+        except (json.JSONDecodeError, KeyError, OSError, TypeError):
+            # Skip corrupt or unreadable session summary
             pass
         finally:
             if progress and task is not None:
@@ -160,7 +160,7 @@ def load_session_updates(session_path: Path, limit: int = 1000) -> list[dict]:
                 out.append(json.loads(line))
                 if len(out) >= limit:
                     break
-    except Exception:
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
         pass
     return out
 
@@ -200,6 +200,30 @@ def format_age(dt: Optional[datetime]) -> str:
         return f"{hrs}h ago"
     mins = (delta.seconds // 60) % 60
     return f"{mins}m ago"
+
+
+def parse_age_delta(spec: str) -> timedelta:
+    """Parse simple age specs like '30d', '6mo', '1y', '2w' into timedelta.
+
+    Used by prune and similar age-based filters. Falls back to 90 days on parse error.
+    """
+    spec = spec.strip().lower()
+    try:
+        if spec.endswith("d"):
+            return timedelta(days=int(spec[:-1]))
+        if spec.endswith("w"):
+            return timedelta(weeks=int(spec[:-1]))
+        if spec.endswith("mo"):
+            return timedelta(days=int(spec[:-2]) * 30)
+        if spec.endswith("y"):
+            return timedelta(days=int(spec[:-1]) * 365)
+        if spec.endswith("h"):
+            return timedelta(hours=int(spec[:-1]))
+        # bare number = days
+        return timedelta(days=int(spec))
+    except Exception:
+        # safe default
+        return timedelta(days=90)
 
 
 def make_table(title: str, columns: list[str]) -> Table:

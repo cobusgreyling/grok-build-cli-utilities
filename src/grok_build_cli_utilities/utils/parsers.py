@@ -34,7 +34,7 @@ def parse_skill(skill_dir: Path, scope: str = "user") -> Optional[Skill]:
         return None
     try:
         text = md.read_text(encoding="utf-8")
-    except Exception:
+    except (OSError, UnicodeDecodeError):
         return None
 
     fm: dict[str, Any] = {}
@@ -44,7 +44,7 @@ def parse_skill(skill_dir: Path, scope: str = "user") -> Optional[Skill]:
         try:
             fm = yaml.safe_load(m.group(1)) or {}
             body = text[m.end() :]
-        except Exception:
+        except Exception:  # yaml parse errors are varied; keep broad here
             fm = {}
 
     name = fm.get("name") or skill_dir.name

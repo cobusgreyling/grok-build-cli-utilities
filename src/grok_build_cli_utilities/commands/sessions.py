@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 import typer
@@ -22,6 +22,7 @@ from ..utils.common import (
     load_session_updates,
     make_table,
     Panel,
+    parse_age_delta,
     search_sessions_sqlite,
     success,
     warn,
@@ -250,7 +251,7 @@ def stats(ctx: typer.Context) -> None:
 @app.command("prune")
 def prune(
     ctx: typer.Context,
-    older_than: str = typer.Option("90d", "--older-than", help="e.g. 30d, 6mo, 1y"),
+    older_than: str = typer.Option("90d", "--older-than", help="e.g. 30d, 2w, 6mo, 1y, 48h"),
     project: Optional[str] = typer.Option(None, "--project"),
     dry_run: bool = typer.Option(
         True, "--dry-run/--no-dry-run", help="Default safe: only show what would be deleted"
@@ -260,15 +261,7 @@ def prune(
     """Prune old sessions (DANGEROUS - defaults to dry-run)."""
     grok_home = get_grok_home(ctx.obj.get("grok_home") if ctx.obj else None)
 
-    # very naive parse
-    delta = timedelta(days=90)
-    if older_than.endswith("d"):
-        delta = timedelta(days=int(older_than[:-1]))
-    elif older_than.endswith("mo"):
-        delta = timedelta(days=int(older_than[:-2]) * 30)
-    elif older_than.endswith("y"):
-        delta = timedelta(days=int(older_than[:-1]) * 365)
-
+    delta = parse_age_delta(older_than)
     cutoff = datetime.now(timezone.utc) - delta
 
     with Progress() as prog:

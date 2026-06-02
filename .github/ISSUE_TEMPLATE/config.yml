@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Grok Build Discussions
+    url: https://github.com/orgs/xai-org/discussions
+    about: Please ask general questions about Grok Build or the utilities here first.
+  - name: Grok on X
+    url: https://x.com/grok
+    about: Follow for announcements.

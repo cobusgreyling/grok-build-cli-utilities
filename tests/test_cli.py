@@ -22,7 +22,9 @@ def test_help():
 def test_version():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "0.2.0" in result.output  # bumped in v0.2.0 work
+    assert (
+        "0.3.0" in result.output
+    )  # 0.3.0 includes doctor, Makefile, release automation, helper extraction etc.
 
 
 def test_sessions_help():
@@ -121,3 +123,166 @@ def test_backup_list_no_dir(tmp_path: Path):
     result = runner.invoke(app, ["-g", str(tmp_path / ".grok"), "backup", "list"])
     # Either succeeds with message or lists (in this env it may find real backups)
     assert result.exit_code == 0
+
+
+def test_sessions_list_json(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    sess_dir = grok / "sessions" / "p" / "sid123"
+    sess_dir.mkdir(parents=True)
+    (sess_dir / "summary.json").write_text(
+        json.dumps(
+            {
+                "info": {"id": "sid123", "cwd": "/p"},
+                "created_at": "2026-06-01T00:00:00Z",
+                "num_messages": 5,
+                "current_model_id": "grok-3",
+            }
+        )
+    )
+    result = runner.invoke(app, ["-g", str(grok), "sessions", "list", "--json", "--limit", "1"])
+    assert result.exit_code == 0
+    assert '"id": "sid123"' in result.output or "sid123" in result.output
+
+
+def test_usage_report_json_and_spark(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    for i, sid in enumerate(["s1", "s2"]):
+        d = grok / "sessions" / "proj" / sid
+        d.mkdir(parents=True)
+        (d / "summary.json").write_text(
+            json.dumps(
+                {
+                    "info": {"id": sid, "cwd": "/proj"},
+                    "created_at": f"2026-06-0{i + 1}T00:00:00Z",
+                    "last_active_at": f"2026-06-0{i + 1}T00:00:00Z",
+                    "num_messages": 10 + i,
+                    "current_model_id": "grok-build",
+                }
+            )
+        )
+    result = runner.invoke(app, ["-g", str(grok), "usage", "report", "--json", "--top", "1"])
+    assert result.exit_code == 0
+    assert "sessions" in result.output and "messages" in result.output
+
+
+def test_sessions_prune_dry_run(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    old_dir = grok / "sessions" / "oldproj" / "old123"
+    old_dir.mkdir(parents=True)
+    (old_dir / "summary.json").write_text(
+        json.dumps(
+            {
+                "info": {"id": "old123", "cwd": "/old"},
+                "created_at": "2020-01-01T00:00:00Z",
+                "last_active_at": "2020-01-01T00:00:00Z",
+                "num_messages": 1,
+                "current_model_id": "old",
+            }
+        )
+    )
+    result = runner.invoke(
+        app, ["-g", str(grok), "sessions", "prune", "--older-than", "1d", "--dry-run"]
+    )
+    assert result.exit_code == 0
+    assert "DRY RUN" in result.output or "Would prune" in result.output or "old123" in result.output
+
+
+def test_sessions_prune_execute_with_yes(tmp_path: Path):
+    """Exercise the actual delete path using --no-dry-run --yes (safe in tmp)."""
+    grok = tmp_path / ".grok"
+    old_dir = grok / "sessions" / "oldproj" / "old456"
+    old_dir.mkdir(parents=True)
+    (old_dir / "summary.json").write_text(
+        json.dumps(
+            {
+                "info": {"id": "old456", "cwd": "/old2"},
+                "created_at": "2020-01-01T00:00:00Z",
+                "last_active_at": "2020-01-01T00:00:00Z",
+                "num_messages": 1,
+                "current_model_id": "old",
+            }
+        )
+    )
+    assert old_dir.exists()
+    result = runner.invoke(
+        app,
+        ["-g", str(grok), "sessions", "prune", "--older-than", "1d", "--no-dry-run", "--yes"],
+    )
+    assert result.exit_code == 0
+    assert (
+        "Deleted" in result.output
+        or "old456" in result.output
+        or "Removed" in result.output.lower()
+    )
+    # dir should be gone (or at least attempt made)
+    assert not old_dir.exists() or not (old_dir / "summary.json").exists()
+
+
+def test_skills_pack_creates_tar(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    # create a skill first (into the isolated grok via --user)
+    result = runner.invoke(
+        app,
+        ["-g", str(grok), "skills", "create", "packme", "--desc", "Skill for pack test", "--user"],
+    )
+    assert result.exit_code == 0
+
+    out_tar = tmp_path / "packme.skill.tar.gz"
+    result2 = runner.invoke(app, ["-g", str(grok), "skills", "pack", "packme", "-o", str(out_tar)])
+    assert result2.exit_code == 0
+    assert out_tar.exists()
+    assert out_tar.stat().st_size > 100
+
+
+def test_mcp_add_example_appends_config(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    cfg = grok / "config.toml"
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    cfg.write_text("[other]\nfoo=1\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app, ["-g", str(grok), "mcp", "add-example", "myfs", "--kind", "filesystem"]
+    )
+    assert result.exit_code == 0
+    content = cfg.read_text(encoding="utf-8")
+    assert "[mcp_servers.myfs]" in content
+    assert "server-filesystem" in content
+
+
+def test_backup_create_with_manifest(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    grok.mkdir(parents=True)
+    # minimal state so gather finds something
+    (grok / "config.toml").write_text("test = true\n", encoding="utf-8")
+    (grok / "user-settings.json").write_text("{}", encoding="utf-8")
+
+    out = tmp_path / "test-backup.tar.gz"
+    result = runner.invoke(
+        app,
+        ["-g", str(grok), "backup", "create", "-o", str(out), "--no-compress"],
+    )
+    assert result.exit_code == 0
+    assert out.exists()
+
+    # manifest sidecar
+    mf = out.with_suffix(out.suffix + ".manifest.json")
+    assert mf.exists()
+    import json
+
+    data = json.loads(mf.read_text())
+    assert "files" in data and len(data["files"]) > 0
+    assert any("config.toml" in f.get("path", "") for f in data["files"])
+
+
+def test_doctor_runs(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    grok.mkdir(parents=True)
+    (grok / "config.toml").write_text("", encoding="utf-8")
+
+    result = runner.invoke(app, ["-g", str(grok), "doctor"])
+    assert result.exit_code == 0
+    assert "grok-utils doctor" in result.output or "Python" in result.output
+
+    resultj = runner.invoke(app, ["-g", str(grok), "doctor", "--json"])
+    assert resultj.exit_code == 0
+    assert '"checks"' in resultj.output or "grok_home" in resultj.output

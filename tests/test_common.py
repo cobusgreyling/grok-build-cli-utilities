@@ -173,3 +173,18 @@ def test_safe_extract_tar_blocks_traversal(tmp_path: Path):
 
     # nothing should have been written outside
     assert not (tmp_path / "etc").exists()
+
+
+def test_parse_age_delta():
+    from datetime import timedelta
+
+    from grok_build_cli_utilities.utils.common import parse_age_delta
+
+    assert parse_age_delta("30d") == timedelta(days=30)
+    assert parse_age_delta("2w") == timedelta(weeks=2)
+    assert parse_age_delta("6mo").days == 180
+    assert parse_age_delta("1y").days == 365
+    assert parse_age_delta("48h") == timedelta(hours=48)
+    assert parse_age_delta("7") == timedelta(days=7)
+    # bad input falls back to 90d
+    assert parse_age_delta("nonsense") == timedelta(days=90)
