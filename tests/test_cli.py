@@ -1,7 +1,6 @@
 """Smoke + functional tests for the CLI entrypoint using temp grok homes."""
 
 import json
-import tempfile
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -87,18 +86,14 @@ def test_skills_create_and_validate(tmp_path: Path):
     grok = tmp_path / ".grok"
     result = runner.invoke(
         app,
-        ["-g", str(grok), "skills", "create", "my-test", "--desc", "Test skill for CLI", "--local"],
+        ["-g", str(grok), "skills", "create", "my-test", "--desc", "Test skill for CLI", "--user"],
     )
     assert result.exit_code == 0
     assert "Created" in result.output
 
-    # validate it
-    skill_dir = Path.cwd() / ".grok" / "skills" / "my-test"
-    # The create defaults to local cwd .grok, so we may need to adjust or use user scope.
-    # For robustness also test validate on the created one if present, or just check exit 0 on validate all
+    # validate it (using --user + -g so it lands inside the isolated tmp grok_home)
     result2 = runner.invoke(app, ["-g", str(grok), "skills", "validate"])
-    # It may find 0 or the local one; either way should not hard fail in this env
-    assert result2.exit_code in (0, 2)
+    assert result2.exit_code == 0
 
 
 def test_sessions_list_with_fake_data(tmp_path: Path):

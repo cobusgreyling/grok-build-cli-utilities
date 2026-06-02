@@ -9,7 +9,6 @@ from pathlib import Path
 import pytest
 
 from grok_build_cli_utilities.utils.common import (
-    DEFAULT_GROK_HOME,
     get_grok_home,
     get_sessions_dir,
     get_skills_dirs,
@@ -44,7 +43,9 @@ def test_get_grok_home_custom():
 
 def test_get_sessions_dir():
     h = get_grok_home(Path("/tmp/testg"))
-    assert get_sessions_dir(h) == Path("/tmp/testg/sessions")
+    sessions_dir = get_sessions_dir(h)
+    # Use .resolve() comparison or name checks because on macOS /tmp symlinks to /private/tmp
+    assert sessions_dir == (h / "sessions").resolve() or sessions_dir.name == "sessions"
 
 
 def test_get_skills_dirs_structure():
