@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/header.png" alt="Grok Build CLI Utilities" width="160" />
+  <img src="images/header.png" alt="Grok Build CLI Utilities" width="160" />
 </p>
 
 # grok-build-cli-utilities
