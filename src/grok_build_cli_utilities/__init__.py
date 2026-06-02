@@ -6,6 +6,6 @@ Grok Build experience.
 Author: Cobus Greyling
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Cobus Greyling"
 __email__ = "cobusgreyling@users.noreply.github.com"
