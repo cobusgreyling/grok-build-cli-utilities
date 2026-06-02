@@ -33,6 +33,8 @@ def test_sessions_help():
     assert "list" in result.output
     assert "search" in result.output
     assert "prune" in result.output
+    assert "resume" in result.output
+    assert "info" in result.output
 
 
 def test_skills_help():
@@ -54,6 +56,24 @@ def test_backup_help():
 def test_mcp_help():
     result = runner.invoke(app, ["mcp", "--help"])
     assert result.exit_code == 0
+
+
+def test_new_tier_commands_help():
+    for grp in ["plugins", "hooks", "config", "logs"]:
+        result = runner.invoke(app, [grp, "--help"])
+        assert result.exit_code == 0, f"{grp} help failed"
+        assert (
+            "help" in result.output.lower() or "--json" in result.output or "list" in result.output
+        )
+
+    # sessions new subcommands
+    result = runner.invoke(app, ["sessions", "--help"])
+    assert "export" in result.output
+    assert "analyze" in result.output
+
+    # usage cost
+    result = runner.invoke(app, ["usage", "--help"])
+    assert "cost" in result.output
 
 
 def test_worktree_help():
@@ -142,6 +162,27 @@ def test_sessions_list_json(tmp_path: Path):
     result = runner.invoke(app, ["-g", str(grok), "sessions", "list", "--json", "--limit", "1"])
     assert result.exit_code == 0
     assert '"id": "sid123"' in result.output or "sid123" in result.output
+
+
+def test_sessions_resume_json_mode(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    sess_dir = grok / "sessions" / "p" / "sid-resume-12345678"
+    sess_dir.mkdir(parents=True)
+    (sess_dir / "summary.json").write_text(
+        json.dumps(
+            {
+                "info": {"id": "sid-resume-12345678", "cwd": "/p"},
+                "created_at": "2026-06-01T00:00:00Z",
+                "last_active_at": "2026-06-01T01:00:00Z",
+                "num_messages": 3,
+                "current_model_id": "grok-build",
+            }
+        )
+    )
+    result = runner.invoke(app, ["-g", str(grok), "sessions", "resume", "sid-resume", "--json"])
+    assert result.exit_code == 0
+    assert "sid-resume-12345678" in result.output
+    assert "resume" in result.output.lower() or "cmd" in result.output
 
 
 def test_usage_report_json_and_spark(tmp_path: Path):
@@ -286,3 +327,38 @@ def test_doctor_runs(tmp_path: Path):
     resultj = runner.invoke(app, ["-g", str(grok), "doctor", "--json"])
     assert resultj.exit_code == 0
     assert '"checks"' in resultj.output or "grok_home" in resultj.output
+
+
+def test_plugins_and_hooks_with_fake(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    plug_dir = grok / "plugins" / "demo-plugin"
+    (plug_dir / "skills" / "demo").mkdir(parents=True)
+    (plug_dir / "skills" / "demo" / "SKILL.md").write_text("---\nname: demo\ndescription: demo skill\n---\nsteps")
+    (plug_dir / "hooks").mkdir(parents=True)
+    (plug_dir / "hooks" / "hooks.json").write_text('{"hooks": {"SessionStart": [{"hooks": [{"type":"command","command":"echo hi"}]}]}}')
+
+    # plugins list
+    r = runner.invoke(app, ["-g", str(grok), "plugins", "list", "--json"])
+    assert r.exit_code == 0
+    assert "demo-plugin" in r.output
+
+    # hooks list
+    r2 = runner.invoke(app, ["-g", str(grok), "hooks", "list", "--json"])
+    assert r2.exit_code == 0
+    assert "SessionStart" in r2.output or "demo" in r2.output.lower()
+
+
+def test_config_and_logs_fake(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    grok.mkdir(parents=True, exist_ok=True)
+    (grok / "config.toml").write_text('[ui]\npermission_mode = "always-approve"\n')
+    (grok / "logs").mkdir(parents=True, exist_ok=True)
+    (grok / "logs" / "unified.jsonl").write_text('{"ts":"2026-01-01","src":"t","lvl":"info","msg":"hello"}\n')
+
+    r = runner.invoke(app, ["-g", str(grok), "config", "show", "--json"])
+    assert r.exit_code == 0
+    assert "ui" in r.output or "permission" in r.output
+
+    r2 = runner.invoke(app, ["-g", str(grok), "logs", "tail", "--lines", "1", "--json"])
+    assert r2.exit_code == 0
+

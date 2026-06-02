@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -26,6 +29,10 @@ from ..utils.common import (
     search_sessions_sqlite,
     success,
     warn,
+)
+from ..utils.parsers import (
+    load_rewind_points,
+    load_session_signals,
 )
 
 app = typer.Typer(help="Powerful Grok Build session tools", no_args_is_help=True)
@@ -307,3 +314,232 @@ def prune(
         except Exception as e:
             warn(f"Failed to delete {v.id}: {e}")
     success(f"Deleted {deleted} session(s).")
+
+
+@app.command("analyze")
+def analyze(
+    ctx: typer.Context,
+    session_id: str = typer.Argument(..., help="Session ID prefix or full"),
+    json_out: bool = typer.Option(False, "--json"),
+) -> None:
+    """Deep analysis of a session using signals.json + rewind points + tool counts."""
+    grok_home = get_grok_home(ctx.obj.get("grok_home") if ctx.obj else None)
+    with Progress() as prog:
+        sessions = list(iter_sessions(grok_home, prog))
+
+    matches = [s for s in sessions if s.id.startswith(session_id) or s.id.endswith(session_id)]
+    if not matches:
+        error(f"No match for {session_id}")
+        raise typer.Exit(1)
+    s = matches[0]
+
+    sig = load_session_signals(s.path)
+    rewinds = load_rewind_points(s.path, limit=5)
+    updates = load_session_updates(s.path, limit=2000)
+    tools = count_tool_calls(updates)
+
+    if json_out:
+        import json
+
+        console.print(
+            json.dumps(
+                {
+                    "id": s.id,
+                    "signals": sig.raw if sig else None,
+                    "rewind_points_sample": len(rewinds),
+                    "tool_counts_sample": tools,
+                },
+                indent=2,
+            )
+        )
+        return
+
+    console.print(Panel.fit(f"[bold]{s.id}[/bold]\nCWD: {s.cwd}", title="Session"))
+
+    if sig:
+        console.print(
+            f"Turns: {sig.turn_count}  Tool calls: {sig.tool_call_count}  Errors: {sig.error_count}\n"
+            f"Compactions: {sig.compaction_count}  Tokens used: {sig.context_tokens_used}/{sig.context_window_tokens}\n"
+            f"Duration: {sig.session_duration_s}s  Files touched (agent): {sig.agent_files_touched}\n"
+            f"Tools: {', '.join(sig.tools_used[:8])}{'…' if len(sig.tools_used) > 8 else ''}"
+        )
+    else:
+        ui_info("No signals.json (older session or not fully captured).")
+
+    if rewinds:
+        console.print(
+            f"\nRewind points available: {len(rewinds)} (latest prompt_index ~{rewinds[-1].prompt_index})"
+        )
+    if tools:
+        t = Table(title="Recent tool usage sample", show_header=False)
+        for nm, cnt in sorted(tools.items(), key=lambda x: -x[1])[:8]:
+            t.add_row(nm, str(cnt))
+        console.print(t)
+
+
+@app.command("export")
+def export_session(
+    ctx: typer.Context,
+    session_id: str = typer.Argument(..., help="Session ID (prefix ok)"),
+    fmt: str = typer.Option("md", "--format", "-f", help="md | html | json"),
+    out: Optional[str] = typer.Option(None, "--out", "-o", help="Write to file instead of stdout"),
+    json_out: bool = typer.Option(False, "--json", help="When fmt=json this is implied"),
+) -> None:
+    """Export a session transcript/summary to markdown, simple HTML or JSON.
+    Includes summary, signals, tool stats and basic rewind info.
+    """
+    grok_home = get_grok_home(ctx.obj.get("grok_home") if ctx.obj else None)
+    with Progress() as prog:
+        sessions = list(iter_sessions(grok_home, prog))
+
+    matches = [s for s in sessions if s.id.startswith(session_id) or s.id.endswith(session_id)]
+    if not matches:
+        error(f"No session matching {session_id}")
+        raise typer.Exit(1)
+    s = matches[0]
+
+    sig = load_session_signals(s.path)
+    rew = load_rewind_points(s.path, 3)
+    updates = load_session_updates(s.path, 1500)
+    tools = count_tool_calls(updates)
+
+    if fmt == "json" or json_out:
+        import json
+
+        data = {
+            "id": s.id,
+            "cwd": s.cwd,
+            "created": s.created_at.isoformat() if s.created_at else None,
+            "messages": s.num_messages,
+            "model": s.current_model_id,
+            "signals": sig.raw if sig else None,
+            "tool_counts": tools,
+            "rewind_points": len(rew),
+        }
+        content = json.dumps(data, indent=2)
+    elif fmt == "html":
+        content = f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>Session {s.id}</title>
+<style>body{{font-family:sans-serif;margin:2rem}} pre{{background:#f6f6f6;padding:1rem}}</style></head>
+<body>
+<h1>Session {s.id}</h1>
+<p><b>CWD:</b> {s.cwd} | <b>Model:</b> {s.current_model_id} | <b>Messages:</b> {s.num_messages}</p>
+<h2>Signals</h2><pre>{(sig.raw if sig else {})}</pre>
+<h2>Tool sample</h2><pre>{tools}</pre>
+<h2>Rewinds</h2><p>{len(rew)} points captured</p>
+</body></html>"""
+    else:
+        # md
+        lines = [
+            f"# Session {s.id}",
+            "",
+            f"- **CWD**: {s.cwd}",
+            f"- **Created**: {format_dt(s.created_at)}",
+            f"- **Messages**: {s.num_messages}",
+            f"- **Model**: {s.current_model_id}",
+            "",
+        ]
+        if sig:
+            lines += [
+                "## Signals",
+                f"- Turns: {sig.turn_count}, Tool calls: {sig.tool_call_count}, Errors: {sig.error_count}",
+                f"- Compactions: {sig.compaction_count}, Context: {sig.context_tokens_used}/{sig.context_window_tokens}",
+                f"- Tools used: {', '.join(sig.tools_used[:10])}",
+                "",
+            ]
+        if tools:
+            lines += ["## Tools (sampled)", ""]
+            for nm, c in sorted(tools.items(), key=lambda x: -x[1])[:10]:
+                lines.append(f"- {nm}: {c}")
+            lines.append("")
+        if rew:
+            lines += [f"## Rewind points: {len(rew)} (preview of last few)", ""]
+        content = "\n".join(lines)
+
+    if out:
+        Path(out).write_text(content, encoding="utf-8")
+        success(f"Wrote {fmt} export to {out}")
+    else:
+        console.print(content)
+
+
+@app.command("resume")
+def resume(
+    ctx: typer.Context,
+    session_id: Optional[str] = typer.Argument(
+        None, help="Full or prefix session ID (omitted = most recent for CWD)"
+    ),
+    json_out: bool = typer.Option(
+        False, "--json", help="Print the launch command as JSON (no exec)"
+    ),
+) -> None:
+    """Resume a session by delegating to the real `grok --resume` (finds full ID)."""
+    grok_home = get_grok_home(ctx.obj.get("grok_home") if ctx.obj else None)
+
+    with Progress() as prog:
+        sessions = list(iter_sessions(grok_home, prog))
+
+    if not sessions:
+        error("No sessions found.")
+        raise typer.Exit(1)
+
+    if session_id:
+        matches = [s for s in sessions if s.id.startswith(session_id) or s.id.endswith(session_id)]
+        if not matches:
+            error(f"No session matching '{session_id}'")
+            raise typer.Exit(1)
+        if len(matches) > 1:
+            # prefer most recent
+            matches.sort(
+                key=lambda s: (
+                    s.last_active_at or s.created_at or datetime.min.replace(tzinfo=timezone.utc)
+                ),
+                reverse=True,
+            )
+            warn(f"Multiple matches for prefix, using most recent: {matches[0].id[:12]}…")
+        target = matches[0]
+    else:
+        # Prefer sessions in current working dir, fall back to global most recent
+        cwd = str(Path.cwd().resolve())
+        same_cwd = [s for s in sessions if str(Path(s.cwd).resolve()) == cwd]
+        pool = same_cwd if same_cwd else sessions
+        target = max(
+            pool,
+            key=lambda s: (
+                s.last_active_at or s.created_at or datetime.min.replace(tzinfo=timezone.utc)
+            ),
+        )
+        ui_info(f"Resuming most recent session: {target.id[:12]}… in {target.cwd}")
+
+    grok_bin = grok_home / "bin" / "grok"
+    if grok_bin.exists():
+        cmd = [str(grok_bin), "--resume", target.id]
+    else:
+        cmd = ["grok", "--resume", target.id]
+
+    env = os.environ.copy()
+    # ensure custom grok home is honored by child
+    if grok_home != (Path.home() / ".grok"):
+        env["GROK_HOME"] = str(grok_home)
+
+    if json_out:
+        import json as _json
+
+        console.print(
+            _json.dumps({"cmd": cmd, "session_id": target.id, "cwd": target.cwd}, indent=2)
+        )
+        return
+
+    console.print(f"[dim]→ {' '.join(cmd)}[/dim]")
+    try:
+        # Replace current process (clean terminal takeover for the TUI)
+        os.execvpe(cmd[0], cmd, env)
+    except FileNotFoundError:
+        warn(f"'{cmd[0]}' not found in PATH or at {grok_bin}. Falling back to subprocess.")
+        # Fallback: run and wait (works but may have slight terminal differences)
+        res = subprocess.run(cmd, env=env)
+        raise typer.Exit(res.returncode)
+    except Exception as e:
+        error(f"Failed to launch grok: {e}")
+        ui_info(f"You can run manually: {' '.join(cmd)}")
+        raise typer.Exit(1)

@@ -11,9 +11,13 @@ from rich.console import Console
 from . import __version__
 from .commands import (
     backup,
+    config,
     doctor,
+    hooks,
+    logs,
     mcp,
     memory,
+    plugins,
     sessions,
     skills,
     usage,
@@ -25,8 +29,8 @@ app = typer.Typer(
     help="""Amazing Grok Build CLI Utilities.
 
 A curated set of power tools for Grok Build users.
-Manage sessions, skills, backups, usage analytics, MCP, worktrees, memory and diagnostics
-with beautiful output and safe operations.
+Manage sessions (incl. export/analyze/resume), skills, backups, usage+cost, plugins, hooks,
+config, logs, MCP, worktrees, memory and diagnostics with beautiful output and safe operations.
 
 Author: Cobus Greyling
 """,
@@ -76,7 +80,9 @@ def main(
 
 # Register subcommands
 app.add_typer(
-    sessions.app, name="sessions", help="Advanced session browser, search, stats and pruning"
+    sessions.app,
+    name="sessions",
+    help="Advanced session browser, search, stats, resume and pruning",
 )
 app.add_typer(skills.app, name="skills", help="Skill discovery, creation, validation and packaging")
 app.add_typer(
@@ -88,6 +94,10 @@ app.add_typer(worktree.app, name="worktree", help="Git worktree + Grok session h
 app.add_typer(
     memory.app, name="memory", help="Cross-session memory explorer and curator (experimental)"
 )
+app.add_typer(plugins.app, name="plugins", help="Plugin discovery, inventory and validation")
+app.add_typer(hooks.app, name="hooks", help="Hooks listing, scaffolding and validation")
+app.add_typer(config.app, name="config", help="Inspect config.toml, paths and settings")
+app.add_typer(logs.app, name="logs", help="Quick log tailing and level filtering")
 
 # Top-level convenience commands (not a subcommand group)
 app.command("doctor", help="Diagnose your Grok Build environment and grok-utils setup")(

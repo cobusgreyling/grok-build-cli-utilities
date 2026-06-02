@@ -7,6 +7,16 @@ All notable changes to grok-build-cli-utilities will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+### Added
+- **Full Tier 1/2/3 rollout**: `plugins` (list/info/validate/inventory), `hooks` (list/create/validate/doctor + scaffolds), `sessions export` (md|html|json + signals), `sessions analyze`, `usage cost` (pricing proxy), `config` (show/get/paths/validate), `logs tail`.
+- `sessions resume` + CWD-aware most-recent (earlier increment).
+- Expanded doctor (plugins/hooks), deep parsers (signals/rewind_points), pricing, rules stub.
+- Comprehensive tests, all quality gates green.
+
+### Changed
+- cli registration + main help text updated for 4 new groups + new sessions/usage subs.
+- Updated `sessions --help` tests + many new fake-FS tests for plugins/hooks/config/logs/sessions export etc.
+
 ## [0.3.0] - 2026-06-03
 
 

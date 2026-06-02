@@ -12,6 +12,7 @@ from rich.table import Table
 from ..utils.common import (
     SessionSummary,
     console,
+    estimate_cost,
     format_age,
     get_grok_home,
     iter_sessions,
@@ -203,3 +204,70 @@ def timeline(ctx: typer.Context, days: int = typer.Option(30, "--days", "-d")) -
         bar = _ascii_bar(buckets[day], maxv, 28)
         t.add_row(day, bar, str(buckets[day]))
     console.print(t)
+
+
+@app.command("cost")
+def cost_report(
+    ctx: typer.Context,
+    since: Optional[str] = typer.Option(None, "--since"),
+    by: str = typer.Option("model", "--by", help="Group cost by: model | project"),
+    top: int = typer.Option(8, "--top"),
+    json_out: bool = typer.Option(False, "--json"),
+) -> None:
+    """Rough cost estimate using session message counts and static model pricing (proxy only)."""
+    from collections import defaultdict as _dd
+
+    grok_home = get_grok_home(ctx.obj.get("grok_home") if ctx.obj else None)
+    sessions = list(iter_sessions(grok_home))
+
+    if since:
+        try:
+            cutoff = datetime.fromisoformat(since).replace(tzinfo=timezone.utc)
+            sessions = [
+                s
+                for s in sessions
+                if (s.created_at or datetime.min.replace(tzinfo=timezone.utc)) >= cutoff
+            ]
+        except Exception:
+            warn(f"Ignoring bad --since {since}")
+
+    if not sessions:
+        warn("No data.")
+        return
+
+    groups: _dd[str, list[SessionSummary]] = _dd(list)
+    for s in sessions:
+        key = s.current_model_id if by == "model" else s.cwd
+        groups[key].append(s)
+
+    rows = []
+    total_est = 0.0
+    for k, ss in groups.items():
+        # very rough: assume ~400 tokens per "message" average (tunable)
+        tokens = sum(s.num_messages for s in ss) * 400
+        model = ss[0].current_model_id if ss else "grok-build"
+        est = estimate_cost(tokens, model=model, is_output=True)  # bias a bit to output-heavy
+        est += estimate_cost(int(tokens * 0.6), model=model, is_output=False)
+        total_est += est
+        rows.append((k, len(ss), round(est, 2)))
+
+    rows.sort(key=lambda r: -r[2])
+
+    if json_out:
+        import json
+
+        console.print(
+            json.dumps(
+                {"estimated_total_usd": round(total_est, 2), "by": by, "top": rows[:top]}, indent=2
+            )
+        )
+        return
+
+    t = make_table(f"Estimated Cost by {by} (proxy, USD)", ["Key", "Sessions", "Est. $"])
+    for k, ns, est in rows[:top]:
+        t.add_row(k[:48] + ("…" if len(k) > 48 else ""), str(ns), f"{est:.2f}")
+    console.print(t)
+    console.print(f"\n[bold]Grand total (rough proxy): ${total_est:.2f}[/bold]")
+    warn(
+        "This is a very rough estimate only (message count × assumed tokens × static prices). Use real token accounting for accuracy."
+    )

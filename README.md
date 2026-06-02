@@ -65,6 +65,9 @@ grok-utils sessions list --project my-app --since 2026-05-20
 grok-utils sessions search "auth middleware" --limit 10
 grok-utils sessions info 019e87 --deep          # tool usage stats
 grok-utils sessions stats
+grok-utils sessions analyze 019e87
+grok-utils sessions export 019e87 --format md -o session.md
+grok-utils sessions resume 019e87             # or no arg = most recent in CWD
 grok-utils sessions prune --older-than 60d --dry-run
 ```
 
@@ -163,6 +166,22 @@ grok-utils memory paths
 
 Even if you don't have memory enabled yet, the tools are ready the moment you turn it on.
 
+### New in this release (Tier 1/2)
+```bash
+grok-utils plugins list --all
+grok-utils plugins inventory
+grok-utils hooks list --event SessionStart
+grok-utils hooks create PostToolUse my-audit
+grok-utils config show
+grok-utils config paths
+grok-utils logs tail --level error -n 20
+grok-utils usage cost --by model
+grok-utils sessions export <id> --format html -o out.html
+grok-utils sessions analyze <id>
+```
+
+These bring rich views for the maturing plugins/hooks ecosystem, cost awareness, and deep session forensics.
+
 ---
 
 ## Philosophy & Design
@@ -205,11 +224,36 @@ Real terminal output is best experienced live (`grok-utils usage report`, `sessi
 
 ## Roadmap (ideas)
 
-- More powerful session rewind / diff tooling
-- Cost estimation using real model pricing
-- Export sessions to beautiful static HTML or Obsidian vaults
-- Automatic skill extraction from successful sessions (headless grok assisted)
-- TUI dashboard mode (Textual)
+**Many Tier 1/2 items implemented in this update** (plugins, hooks, sessions export/analyze, usage cost, config, logs, doctor expansions, deep parsers). See CHANGELOG.
+
+### High priority (big productivity wins)
+- `sessions resume <short-id>` — **done**.
+- `sessions export <id>` — **done** (md/html/json).
+- `plugins` subcommand — **done**.
+- `hooks` subcommand — **done**.
+- Cost estimation in usage — **done**.
+- Rewind-preview / stronger diff (analyze covers some signals/rewinds).
+
+### Analytics & cost
+- Cost estimation + pricing in `usage` (model price table, `usage report --cost`, `usage cost --by project`). "Cost estimation using real model pricing".
+- Deeper `sessions analyze <id>` (or `info --deep --full`) using `signals.json`, `plan.json`, compaction history, error rates, subagent trees, rewind stats.
+
+### Session power tools
+- Rewind / diff tooling: `sessions rewind-preview <id>`, `sessions diff <id1> <id2>` (what files/tokens/tools would change). "More powerful session rewind / diff tooling".
+- `sessions compact-stats` or compaction insights.
+
+### Other high-value
+- `config` — inspect, validate, show effective (merged) config, key paths, get/set (dry-run + backup).
+- Automatic / assisted skill extraction: `skills extract-from-session <id>` (headless grok assisted). "Automatic skill extraction from successful sessions".
+- Logs & diagnostics: `logs tail`, `logs query "error" --since 1d` over `unified.jsonl`; integrate recent errors into `doctor`.
+- Permissions/safety auditor: scan sessions for permission events, suggest rules or blocked actions.
+- TUI dashboard mode (Textual) for live usage + session browser.
+
+### Polish & ecosystem
+- Fill screenshots in this README (rich tables, sparklines `████░░░░`, progress, panels).
+- Project-rules / AGENTS.md linter + discovery (`rules lint`, `rules list`).
+- Marketplace helpers (refresh, search) under `plugins marketplace`.
+- Self-apply: add a `grok-utils-dev` skill for this repo's own development workflow.
 
 This project is primarily maintainer-driven, but high-quality, well-tested contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
 

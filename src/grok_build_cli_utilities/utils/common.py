@@ -57,6 +57,34 @@ def get_skills_dirs(grok_home: Path) -> list[tuple[str, Path]]:
     ]
 
 
+def get_plugin_dirs(grok_home: Path) -> list[tuple[str, Path]]:
+    """Return (scope, path) for plugin discovery (user + project/local)."""
+    repo_root = find_repo_root()
+    return [
+        ("local", Path.cwd() / ".grok" / "plugins"),
+        ("repo", repo_root / ".grok" / "plugins" if repo_root else Path()),
+        ("user", grok_home / "plugins"),
+    ]
+
+
+def get_hooks_dirs(grok_home: Path) -> list[tuple[str, Path]]:
+    """Return (scope, path) for hooks discovery."""
+    repo_root = find_repo_root()
+    return [
+        ("local", Path.cwd() / ".grok" / "hooks"),
+        ("repo", repo_root / ".grok" / "hooks" if repo_root else Path()),
+        ("user", grok_home / "hooks"),
+    ]
+
+
+def get_config_path(grok_home: Path) -> Path:
+    return grok_home / "config.toml"
+
+
+def get_logs_path(grok_home: Path) -> Path:
+    return grok_home / "logs" / "unified.jsonl"
+
+
 def find_repo_root(start: Optional[Path] = None) -> Optional[Path]:
     """Walk up to find .git directory."""
     p = (start or Path.cwd()).resolve()
@@ -304,3 +332,27 @@ def safe_extract_tar(
         tar.extractall(target_dir, members=members, filter="data")
     else:
         tar.extractall(target_dir, members=members)
+
+
+# --- Pricing (simple static table; update periodically) ---
+# Prices are per 1M tokens (USD). Rough placeholders for Grok models.
+MODEL_PRICES: dict[str, dict[str, float]] = {
+    "grok-build": {"input": 3.0, "output": 15.0},
+    "grok-3": {"input": 2.0, "output": 10.0},
+    "grok-3-mini": {"input": 0.5, "output": 2.5},
+    "grok-2": {"input": 2.0, "output": 8.0},
+    # add more as models_cache reveals them
+    "default": {"input": 2.0, "output": 10.0},
+}
+
+
+def estimate_cost(
+    messages_or_tokens: int, model: str = "grok-build", is_output: bool = False
+) -> float:
+    """Very rough cost estimate. messages_or_tokens can be token count or approx messages*avg.
+    For accuracy feed real token counts from signals or usage.
+    """
+    prices = MODEL_PRICES.get(model.lower(), MODEL_PRICES["default"])
+    key = "output" if is_output else "input"
+    per_m = prices.get(key, 10.0)
+    return (messages_or_tokens / 1_000_000.0) * per_m

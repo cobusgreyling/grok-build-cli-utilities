@@ -53,6 +53,34 @@ def _safe_mcp_count(grok_home: Path) -> int:
         return -1
 
 
+def _safe_count_plugins(grok_home: Path) -> int:
+    """Count user + project plugins (best effort; marketplace handled by grok itself)."""
+    try:
+        count = 0
+        for base in [grok_home / "plugins", Path.cwd() / ".grok" / "plugins"]:
+            if base.exists():
+                for child in base.iterdir():
+                    if child.is_dir() or (child.is_file() and child.suffix in (".json",)):
+                        count += 1
+        return count
+    except Exception:
+        return -1
+
+
+def _safe_count_hooks(grok_home: Path) -> int:
+    try:
+        count = 0
+        for base in [grok_home / "hooks", Path.cwd() / ".grok" / "hooks"]:
+            if base.exists():
+                for f in base.glob("*.json"):
+                    count += 1
+                # also count sub hook scripts if present
+                count += len(list(base.rglob("*.py"))) + len(list(base.rglob("*.sh")))
+        return count
+    except Exception:
+        return -1
+
+
 def doctor(
     ctx: typer.Context,
     json_out: bool = typer.Option(False, "--json", help="Output structured JSON for scripting/CI"),
@@ -117,6 +145,25 @@ def doctor(
             "name": "MCP servers (config)",
             "status": "✓" if n_mcp > 0 else "⚠",
             "detail": str(n_mcp),
+        }
+    )
+
+    # Plugins & Hooks (emerging ecosystem)
+    n_plugins = _safe_count_plugins(grok_home)
+    checks.append(
+        {
+            "name": "Plugins (user/project dirs)",
+            "status": "✓" if n_plugins > 0 else "⚠",
+            "detail": str(n_plugins) if n_plugins >= 0 else "scan error",
+        }
+    )
+
+    n_hooks = _safe_count_hooks(grok_home)
+    checks.append(
+        {
+            "name": "Hooks files",
+            "status": "✓" if n_hooks > 0 else "⚠",
+            "detail": str(n_hooks) if n_hooks >= 0 else "scan error",
         }
     )
 
