@@ -4,6 +4,10 @@
 
 # grok-build-cli-utilities
 
+[![CI](https://github.com/cobusgreyling/grok-build-cli-utilities/actions/workflows/ci.yml/badge.svg)](https://github.com/cobusgreyling/grok-build-cli-utilities/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+
 **Amazing CLI utilities for [Grok Build](https://x.ai) by Cobus Greyling.**
 
 A powerful, batteries-included collection of command-line tools that make you dramatically more productive with Grok Build.
@@ -22,13 +26,13 @@ A powerful, batteries-included collection of command-line tools that make you dr
 ## Installation
 
 ```bash
-# From source (recommended while early)
+# Recommended (once published on PyPI)
+pip install grok-build-cli-utilities
+
+# Or from source (latest development)
 git clone https://github.com/cobusgreyling/grok-build-cli-utilities.git
 cd grok-build-cli-utilities
 pip install -e ".[dev]"
-
-# Or later when published
-pip install grok-build-cli-utilities
 ```
 
 The command `grok-utils` will be on your PATH.
@@ -169,9 +173,15 @@ Even if you don't have memory enabled yet, the tools are ready the moment you tu
 git clone https://github.com/cobusgreyling/grok-build-cli-utilities
 cd grok-build-cli-utilities
 pip install -e ".[dev]"
-pytest
+
+# Quality gates (CI runs the same)
 ruff check .
+ruff format --check .
+mypy src/grok_build_cli_utilities --ignore-missing-imports
+pytest -q --cov=src/grok_build_cli_utilities --cov-report=term-missing
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full development guide, testing expectations, and how to propose changes.
 
 ---
 
@@ -183,7 +193,7 @@ ruff check .
 - Automatic skill extraction from successful sessions (headless grok assisted)
 - TUI dashboard mode (Textual)
 
-Pull requests from the maintainer only for now.
+This project is primarily maintainer-driven, but high-quality, well-tested contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
 
 ---
 
