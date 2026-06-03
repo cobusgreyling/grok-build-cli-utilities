@@ -35,7 +35,8 @@ title: grok-utils
   body .md-announce {
     display: none !important;
   }
-  /* Zero out wrappers immediately */
+  /* Zero out wrappers immediately so custom top nav is flush at viewport top */
+  html, body,
   body .md-main,
   body .md-main__inner,
   body .md-content,
@@ -43,7 +44,14 @@ title: grok-utils
   body article.md-typeset {
     margin: 0 !important;
     padding: 0 !important;
+    padding-top: 0 !important;
     max-width: 100% !important;
+    width: 100% !important;
+  }
+  body .md-grid {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 </style>
 
