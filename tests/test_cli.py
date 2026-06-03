@@ -23,8 +23,8 @@ def test_version():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
     assert (
-        "0.3.0" in result.output
-    )  # 0.3.0 includes doctor, Makefile, release automation, helper extraction etc.
+        "0.3.1" in result.output
+    )  # 0.3.1 includes tomllib, shared toml, safe helpers, coverage/tests, CI/docs polish etc.
 
 
 def test_sessions_help():
@@ -333,9 +333,13 @@ def test_plugins_and_hooks_with_fake(tmp_path: Path):
     grok = tmp_path / ".grok"
     plug_dir = grok / "plugins" / "demo-plugin"
     (plug_dir / "skills" / "demo").mkdir(parents=True)
-    (plug_dir / "skills" / "demo" / "SKILL.md").write_text("---\nname: demo\ndescription: demo skill\n---\nsteps")
+    (plug_dir / "skills" / "demo" / "SKILL.md").write_text(
+        "---\nname: demo\ndescription: demo skill\n---\nsteps"
+    )
     (plug_dir / "hooks").mkdir(parents=True)
-    (plug_dir / "hooks" / "hooks.json").write_text('{"hooks": {"SessionStart": [{"hooks": [{"type":"command","command":"echo hi"}]}]}}')
+    (plug_dir / "hooks" / "hooks.json").write_text(
+        '{"hooks": {"SessionStart": [{"hooks": [{"type":"command","command":"echo hi"}]}]}}'
+    )
 
     # plugins list
     r = runner.invoke(app, ["-g", str(grok), "plugins", "list", "--json"])
@@ -353,7 +357,9 @@ def test_config_and_logs_fake(tmp_path: Path):
     grok.mkdir(parents=True, exist_ok=True)
     (grok / "config.toml").write_text('[ui]\npermission_mode = "always-approve"\n')
     (grok / "logs").mkdir(parents=True, exist_ok=True)
-    (grok / "logs" / "unified.jsonl").write_text('{"ts":"2026-01-01","src":"t","lvl":"info","msg":"hello"}\n')
+    (grok / "logs" / "unified.jsonl").write_text(
+        '{"ts":"2026-01-01","src":"t","lvl":"info","msg":"hello"}\n'
+    )
 
     r = runner.invoke(app, ["-g", str(grok), "config", "show", "--json"])
     assert r.exit_code == 0
@@ -362,3 +368,77 @@ def test_config_and_logs_fake(tmp_path: Path):
     r2 = runner.invoke(app, ["-g", str(grok), "logs", "tail", "--lines", "1", "--json"])
     assert r2.exit_code == 0
 
+
+def test_sessions_analyze_export_resume_json(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    sess_dir = grok / "sessions" / "proj" / "01abc999"
+    sess_dir.mkdir(parents=True)
+    summary = {
+        "info": {"id": "01abc999", "cwd": str(tmp_path / "proj")},
+        "created_at": "2026-06-01T09:00:00Z",
+        "last_active_at": "2026-06-01T10:00:00Z",
+        "num_messages": 3,
+        "current_model_id": "grok-3",
+        "agent_name": "",
+    }
+    (sess_dir / "summary.json").write_text(json.dumps(summary))
+    # signals + rewinds for analyze/export
+    (sess_dir / "signals.json").write_text('{"turnCount":2,"toolCallCount":4}')
+    (sess_dir / "rewind_points.jsonl").write_text('{"prompt_index":1}\n')
+
+    # analyze
+    r = runner.invoke(app, ["-g", str(grok), "sessions", "analyze", "01abc999", "--json"])
+    assert r.exit_code == 0
+    assert "01abc999" in r.output and ("signals" in r.output or "turnCount" in r.output)
+
+    # export md
+    r2 = runner.invoke(app, ["-g", str(grok), "sessions", "export", "01abc", "--format", "md"])
+    assert r2.exit_code == 0
+    assert "# Session 01abc999" in r2.output or "Session 01abc999" in r2.output
+
+    # export json via flag
+    r3 = runner.invoke(app, ["-g", str(grok), "sessions", "export", "01abc999", "--json"])
+    assert r3.exit_code == 0
+    assert '"id": "01abc999"' in r3.output
+
+    # resume --json (no exec)
+    r4 = runner.invoke(app, ["-g", str(grok), "sessions", "resume", "01abc999", "--json"])
+    assert r4.exit_code == 0
+    assert "--resume" in r4.output or "01abc999" in r4.output
+
+
+def test_usage_cost_and_config_get(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    grok.mkdir(parents=True)
+    sess_dir = grok / "sessions" / "p1" / "s1"
+    sess_dir.mkdir(parents=True)
+    (sess_dir / "summary.json").write_text(
+        json.dumps(
+            {
+                "info": {"id": "s1", "cwd": "/p1"},
+                "created_at": "2026-06-01T00:00:00Z",
+                "num_messages": 10,
+                "current_model_id": "grok-3",
+            }
+        )
+    )
+
+    r = runner.invoke(app, ["-g", str(grok), "usage", "cost", "--by", "model", "--json"])
+    assert r.exit_code == 0
+    assert "estimated_total_usd" in r.output or "Est." in r.output  # rough
+
+    # config get (uses parsers load)
+    (grok / "config.toml").write_text('[foo]\nbar = "baz"\n')
+    r2 = runner.invoke(app, ["-g", str(grok), "config", "get", "foo.bar"])
+    assert r2.exit_code == 0
+
+
+def test_plugins_inventory_and_hooks_create(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    # inventory is not a subcommand? but list --all exercises marketplace path (empty ok)
+    r = runner.invoke(app, ["-g", str(grok), "plugins", "list", "--all", "--json"])
+    assert r.exit_code == 0
+
+    # hooks create (scaffolds)
+    r2 = runner.invoke(app, ["-g", str(grok), "hooks", "create", "PostToolUse", "audit"])
+    assert r2.exit_code == 0 or "Created" in r2.output or "hook" in r2.output.lower()

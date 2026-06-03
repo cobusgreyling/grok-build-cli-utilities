@@ -188,3 +188,79 @@ def test_parse_age_delta():
     assert parse_age_delta("7") == timedelta(days=7)
     # bad input falls back to 90d
     assert parse_age_delta("nonsense") == timedelta(days=90)
+
+
+def test_load_toml_and_safe_helpers(tmp_path: Path):
+    from grok_build_cli_utilities.utils.common import load_toml, safe_read_text, safe_json_load
+
+    # missing
+    assert load_toml(tmp_path / "no.toml") == {}
+
+    p = tmp_path / "c.toml"
+    p.write_text('# c\n[mcp_servers.fs]\ncommand = "npx fs"\n[ui]\npermission_mode = "ask"\n')
+    data = load_toml(p)
+    assert data["mcp_servers"]["fs"]["command"] == "npx fs"
+    assert data["ui"]["permission_mode"] == "ask"
+
+    # safe read
+    assert safe_read_text(p).startswith("# c")
+    assert safe_read_text(tmp_path / "missing") == ""
+
+    # safe json
+    jf = tmp_path / "j.json"
+    jf.write_text('{"a": 1}')
+    assert safe_json_load(jf) == {"a": 1}
+    assert safe_json_load('{"bad": }', default=[]) == []
+    assert safe_json_load("not json", default=None) == {}
+
+
+def test_session_signals_and_rewinds(tmp_path: Path):
+    from grok_build_cli_utilities.utils.parsers import (
+        load_session_signals,
+        load_rewind_points,
+        SessionSignals,
+    )
+
+    sess = tmp_path / "sess123"
+    sess.mkdir()
+
+    # signals
+    (sess / "signals.json").write_text(
+        '{"turnCount":5,"toolCallCount":12,"errorCount":1,"contextTokensUsed":8000,"contextWindowTokens":128000}'
+    )
+    sig = load_session_signals(sess)
+    assert isinstance(sig, SessionSignals)
+    assert sig.turn_count == 5 and sig.tool_call_count == 12
+
+    # rewinds jsonl
+    rp = sess / "rewind_points.jsonl"
+    rp.write_text('{"prompt_index":10}\n{"prompt_index":5,"file_snapshots":{"f1":{}}}\n')
+    pts = load_rewind_points(sess, limit=5)
+    assert len(pts) == 2
+    assert pts[0].prompt_index == 10
+    assert pts[1].num_file_snapshots == 1
+
+    # bad jsonl line skipped
+    rp.write_text("not json\n")
+    pts2 = load_rewind_points(sess, limit=1)
+    assert pts2 == [] or len(pts2) == 0  # tolerant
+
+
+def test_tail_logs_and_project_rules(tmp_path: Path, monkeypatch):
+    from grok_build_cli_utilities.utils.parsers import tail_logs, iter_project_rules
+
+    grok = tmp_path / ".grok"
+    logdir = grok / "logs"
+    logdir.mkdir(parents=True)
+    (logdir / "unified.jsonl").write_text(
+        '{"ts":"t1","lvl":"error","msg":"boom"}\n{"ts":"t2","lvl":"info","msg":"ok"}\n'
+    )
+    lines = tail_logs(grok, lines=10, level="error")
+    assert len(lines) == 1
+    assert "boom" in str(lines[0])
+
+    # rules discovery (light) - chdir so cwd-based finder sees it
+    (tmp_path / "AGENTS.md").write_text("# rules")
+    monkeypatch.chdir(tmp_path)
+    rules = iter_project_rules()
+    assert any("AGENTS.md" in str(r) for r in rules)
