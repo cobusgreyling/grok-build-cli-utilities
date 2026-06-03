@@ -1,0 +1,97 @@
+site_name: grok-utils
+site_description: Amazing CLI utilities for Grok Build. Sessions, skills, backup, usage, MCP, worktree, plugins, hooks, config, logs, memory and more.
+site_author: Cobus Greyling
+site_url: https://cobusgreyling.github.io/grok-build-cli-utilities/
+repo_url: https://github.com/cobusgreyling/grok-build-cli-utilities
+repo_name: grok-build-cli-utilities
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+  logo: assets/header.jpg
+  favicon: assets/header.jpg
+
+
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/cobusgreyling/grok-build-cli-utilities
+    - icon: fontawesome/brands/x-twitter
+      link: https://x.com/cobusgreyling
+  version:
+    provider: mike  # optional, or remove
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - def_list
+  - footnotes
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Quick Start: quickstart.md
+  - Commands:
+      - Overview: commands/index.md
+      - doctor: commands/doctor.md
+      - sessions: commands/sessions.md
+      - skills: commands/skills.md
+      - backup: commands/backup.md
+      - usage: commands/usage.md
+      - mcp: commands/mcp.md
+      - worktree: commands/worktree.md
+      - memory: commands/memory.md
+      - plugins: commands/plugins.md
+      - hooks: commands/hooks.md
+      - config: commands/config.md
+      - logs: commands/logs.md
+  - Examples & Tips: examples.md
+  - Philosophy & Design: philosophy.md
+  - Development: development.md
+  - Changelog: changelog.md
+  - Contributing: contributing.md
+
+plugins:
+  - search
+
+copyright: Copyright &copy; 2026 Cobus Greyling. Built for the Grok Build community.

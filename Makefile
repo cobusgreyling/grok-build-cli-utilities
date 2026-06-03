@@ -1,4 +1,4 @@
-.PHONY: help install dev-install lint format typecheck test cov build clean pre-commit
+.PHONY: help install dev-install lint format typecheck test cov build clean pre-commit docs-install docs-serve docs-build
 
 PYTHON ?= python3
 
@@ -15,6 +15,9 @@ help:
 	@echo "  make build         Build sdist + wheel"
 	@echo "  make clean         Remove build artifacts, caches, egg-info"
 	@echo "  make pre-commit    Install and run pre-commit hooks on all files"
+	@echo "  make docs-install  Install MkDocs + Material for docs"
+	@echo "  make docs-serve    Serve docs locally at http://127.0.0.1:8000"
+	@echo "  make docs-build    Build static site into site/ (strict)"
 	@echo ""
 
 install:
@@ -49,3 +52,13 @@ clean:
 pre-commit:
 	$(PYTHON) -m pre_commit install
 	$(PYTHON) -m pre_commit run --all-files
+
+# Documentation (MkDocs + Material)
+docs-install:
+	$(PYTHON) -m pip install -e ".[docs]"
+
+docs-serve:
+	$(PYTHON) -m mkdocs serve
+
+docs-build:
+	$(PYTHON) -m mkdocs build --strict

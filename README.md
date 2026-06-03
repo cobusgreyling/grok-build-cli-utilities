@@ -6,6 +6,7 @@
 
 [![CI](https://github.com/cobusgreyling/grok-build-cli-utilities/actions/workflows/ci.yml/badge.svg)](https://github.com/cobusgreyling/grok-build-cli-utilities/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/grok-build-cli-utilities.svg)](https://pypi.org/project/grok-build-cli-utilities/)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue?logo=gitbook&logoColor=white)](https://cobusgreyling.github.io/grok-build-cli-utilities/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 
@@ -23,6 +24,8 @@ A powerful, batteries-included collection of command-line tools that make you dr
 **New in 0.3.1**: shared robust TOML loader (tomllib on 3.11+, tomli, improved naive), safe FS/JSON helpers, reduced broad exception handling, more tests + coverage, CI on macOS + build verification, `__main__` support, CODE_OF_CONDUCT, docs/CI polish, and bug fixes (e.g. plugin discovery).
 
 **Sole author & maintainer:** Cobus Greyling
+
+> **📖 Full documentation**: [https://cobusgreyling.github.io/grok-build-cli-utilities/](https://cobusgreyling.github.io/grok-build-cli-utilities/) — command reference, examples, philosophy and more.
 
 ---
 

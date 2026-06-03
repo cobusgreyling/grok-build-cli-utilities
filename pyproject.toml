@@ -52,12 +52,17 @@ dev = [
   "mypy>=1.0",
   "build>=1.0",
 ]
+docs = [
+  "mkdocs>=1.6",
+  "mkdocs-material>=9.5",
+]
 
 [project.scripts]
 grok-utils = "grok_build_cli_utilities.cli:app"
 
 [project.urls]
 Homepage = "https://github.com/cobusgreyling/grok-build-cli-utilities"
+Documentation = "https://cobusgreyling.github.io/grok-build-cli-utilities/"
 Repository = "https://github.com/cobusgreyling/grok-build-cli-utilities"
 Issues = "https://github.com/cobusgreyling/grok-build-cli-utilities/issues"
 
