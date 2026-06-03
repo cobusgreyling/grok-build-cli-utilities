@@ -254,31 +254,47 @@
 
 /* ========================================
    Hide Material chrome for pure arsenal-style landing on home
+   Use :has() so it works without depending on late JS class on html
    ======================================== */
+body:has(.grok-landing) .md-header,
+body:has(.grok-landing) .md-sidebar,
+body:has(.grok-landing) .md-tabs,
+body:has(.grok-landing) .md-footer,
+body:has(.grok-landing) .md-announce {
+  display: none !important;
+}
+
+/* Aggressively reset all Material wrapper layers so the custom top nav
+   (grok-nav) sits flush against the top of the viewport with no extra space */
+body:has(.grok-landing) .md-main,
+body:has(.grok-landing) .md-main__inner,
+body:has(.grok-landing) .md-content,
+body:has(.grok-landing) .md-content__inner,
+body:has(.grok-landing) article.md-typeset,
+body:has(.grok-landing) .md-grid {
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  display: block !important;
+}
+
+/* Make the landing div start immediately */
+body:has(.grok-landing) .grok-landing {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* Fallback for older browsers or if :has not supported - also use the class */
 .grok-landing-active .md-header,
 .grok-landing-active .md-sidebar,
 .grok-landing-active .md-tabs,
 .grok-landing-active .md-footer {
   display: none !important;
-}
-
-.grok-landing-active .md-main {
-  margin-top: 0 !important;
-}
-
-.grok-landing-active .md-content {
-  padding-top: 0 !important;
-  max-width: 100% !important;
-}
-
-.grok-landing-active .md-content__inner {
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-/* Ensure the custom landing content starts immediately */
-.grok-landing {
-  margin-top: 0;
 }
 
 /* Make sure Tailwind CDN classes win over some Material resets */

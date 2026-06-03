@@ -26,6 +26,26 @@ title: grok-utils
 </script>
 
 <div class="grok-landing">
+<style>
+  /* Early hide of Material top chrome to prevent flash of default banner */
+  body .md-header,
+  body .md-sidebar,
+  body .md-tabs,
+  body .md-footer,
+  body .md-announce {
+    display: none !important;
+  }
+  /* Zero out wrappers immediately */
+  body .md-main,
+  body .md-main__inner,
+  body .md-content,
+  body .md-content__inner,
+  body article.md-typeset {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+</style>
 
 <!-- Custom Arsenal-style Navbar -->
 <nav class="grok-nav border-b border-zinc-800 bg-zinc-950/90 backdrop-blur-lg sticky top-0 z-50">
@@ -97,6 +117,13 @@ title: grok-utils
         <span><strong class="text-zinc-400">Sole author &amp; maintainer:</strong> Cobus Greyling</span>
       </div>
     </div>
+  </div>
+
+  <!-- Hero banner / visual (matching arsenal style) -->
+  <div class="max-w-screen-xl mx-auto px-6 pt-8 pb-4">
+    <img src="assets/header.jpg" alt="Grok Build CLI Utilities banner" 
+         class="w-full rounded-2xl border border-zinc-800 shadow-2xl"
+         style="max-height: 380px; object-fit: cover; display: block;">
   </div>
 </div>
 
