@@ -64,7 +64,7 @@ def list_sessions(
         try:
             cutoff = datetime.fromisoformat(since).replace(tzinfo=timezone.utc)
             sessions = [s for s in sessions if s.created_at and s.created_at >= cutoff]
-        except Exception:
+        except (ValueError, TypeError, OverflowError):
             error(f"Bad --since date: {since}")
             raise typer.Exit(1)
 

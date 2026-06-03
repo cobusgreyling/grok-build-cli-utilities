@@ -246,6 +246,6 @@ def _run_native_plugin_list(grok_home: Path) -> Optional[str]:
         )
         if out.returncode == 0:
             return out.stdout.strip()
-    except Exception:
+    except (subprocess.SubprocessError, OSError, FileNotFoundError, PermissionError):
         pass
     return None

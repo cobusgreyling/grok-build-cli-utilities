@@ -26,7 +26,7 @@ def list_worktrees(ctx: typer.Context) -> None:
         out = subprocess.check_output(
             ["git", "worktree", "list", "--porcelain"], text=True, stderr=subprocess.DEVNULL
         )
-    except Exception:
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError, PermissionError):
         error("Not in a git repo or git worktree list failed")
         raise typer.Exit(1)
 
@@ -39,7 +39,7 @@ def list_worktrees(ctx: typer.Context) -> None:
         repo_root = subprocess.check_output(
             ["git", "rev-parse", "--show-toplevel"], text=True
         ).strip()
-    except Exception:
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError, PermissionError):
         pass
 
     wt_lines = [line for line in out.splitlines() if line.startswith("worktree ")]

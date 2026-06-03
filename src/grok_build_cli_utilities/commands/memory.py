@@ -96,7 +96,7 @@ def search_memory(
                 hits.append((md.relative_to(root), snip))
                 if len(hits) >= limit:
                     break
-        except Exception:
+        except (OSError, UnicodeDecodeError, PermissionError):
             continue
 
     if not hits:

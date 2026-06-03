@@ -5,18 +5,15 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-try:
-    import tomli
-except ImportError:
-    tomli = None  # type: ignore[assignment]
-
 import typer
 
 from ..utils.common import (
     console,
     error,
+    get_config_path,
     get_grok_home,
     info,
+    load_toml,
     make_table,
     success,
     warn,
@@ -26,30 +23,9 @@ app = typer.Typer(help="MCP server power tools and diagnostics", no_args_is_help
 
 
 def _load_config(grok_home: Path) -> dict:
-    cfg = grok_home / "config.toml"
-    if not cfg.exists():
-        return {}
-    try:
-        with open(cfg, "rb") as f:
-            if tomli is not None:
-                return tomli.load(f)  # type: ignore[no-any-return]
-            else:
-                # very naive toml reader for name = "value" under [mcp_servers.xxx]
-                # sufficient for the doctor/list use case
-                data: dict[str, dict] = {}
-                current: str | None = None
-                text = f.read().decode("utf-8", errors="ignore")
-                for raw in text.splitlines():
-                    line = raw.strip()
-                    if line.startswith("[mcp_servers."):
-                        current = line[1:-1].split(".", 1)[1]
-                        data.setdefault(current, {})
-                    elif "=" in line and current:
-                        k, v = [x.strip().strip("\"'") for x in line.split("=", 1)]
-                        data[current][k] = v
-                return {"mcp_servers": data}
-    except Exception:
-        return {}
+    """Thin wrapper returning the parsed config (now uses shared load_toml)."""
+    cfg_path = get_config_path(grok_home)
+    return load_toml(cfg_path)
 
 
 @app.command("list")
@@ -86,7 +62,7 @@ def list_mcp(ctx: typer.Context) -> None:
             if out.returncode == 0 and out.stdout.strip():
                 console.print("\n[bold]grok mcp list output:[/bold]")
                 console.print(out.stdout.strip())
-        except Exception:
+        except (subprocess.SubprocessError, OSError, FileNotFoundError, PermissionError):
             pass
 
 

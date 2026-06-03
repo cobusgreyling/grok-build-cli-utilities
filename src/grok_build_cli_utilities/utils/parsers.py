@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 import yaml
 
-from .common import find_repo_root
+from .common import find_repo_root, safe_json_load, safe_read_text
 
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
@@ -182,7 +182,7 @@ def _looks_like_plugin(p: Path) -> bool:
 def parse_plugin(plugin_dir: Path, scope: str = "user") -> Optional[Plugin]:
     """Parse a plugin directory or manifest. Best effort, very tolerant."""
     if not _looks_like_plugin(plugin_dir):
-        pass
+        return None
     name = plugin_dir.name
     version = ""
     desc = ""
@@ -191,18 +191,16 @@ def parse_plugin(plugin_dir: Path, scope: str = "user") -> Optional[Plugin]:
     if not manifest.exists():
         manifest = plugin_dir / ".claude-plugin" / "plugin.json"
     if manifest.exists():
-        try:
-            data = json.loads(manifest.read_text())
-            name = data.get("name", name)
-            version = data.get("version", "")
-            desc = data.get("description", "")
-            a = data.get("author", {})
-            if isinstance(a, dict):
-                author = a.get("name", "")
-            elif isinstance(a, str):
-                author = a
-        except Exception:
-            pass
+        text = safe_read_text(manifest)
+        data = safe_json_load(text, default={})
+        name = data.get("name", name)
+        version = data.get("version", "")
+        desc = data.get("description", "")
+        a = data.get("author", {})
+        if isinstance(a, dict):
+            author = a.get("name", "")
+        elif isinstance(a, str):
+            author = a
 
     has_skills = (plugin_dir / "skills").exists() or bool(list((plugin_dir).rglob("SKILL.md")))
     has_agents = (plugin_dir / "agents").exists()
@@ -266,7 +264,7 @@ def iter_plugins(grok_home: Path, include_marketplace: bool = False) -> list[Plu
                             if pl and pl.name.lower() not in seen:
                                 seen.add(pl.name.lower())
                                 results.append(pl)
-        except Exception:
+        except (OSError, PermissionError, RuntimeError):
             pass
     return results
 
@@ -297,9 +295,12 @@ def parse_hooks(hooks_file: Path, scope: str = "user") -> list[Hook]:
     """Parse a hooks.json file. Returns list of Hook per event."""
     if not hooks_file.exists():
         return []
+    text = safe_read_text(hooks_file)
+    if not text:
+        return []
     try:
-        data = json.loads(hooks_file.read_text(encoding="utf-8"))
-    except Exception:
+        data = json.loads(text)
+    except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
         return []
 
     desc = data.get("description", "") if isinstance(data, dict) else ""
@@ -360,41 +361,11 @@ def iter_hooks(grok_home: Path) -> list[Hook]:
 # Config helpers (Tier 2)
 # -----------------------------
 def load_config(grok_home: Path) -> dict[str, Any]:
-    """Load config.toml with fallback naive parser (same spirit as mcp)."""
-    from .common import get_config_path
+    """Load config.toml (delegates to common.load_toml for tomllib/tomli/naive)."""
+    from .common import get_config_path, load_toml
 
     cfg_path = get_config_path(grok_home)
-    if not cfg_path.exists():
-        return {}
-    try:
-        try:
-            import tomli  # type: ignore
-
-            with open(cfg_path, "rb") as f:
-                return tomli.load(f)  # type: ignore[no-any-return]
-        except ImportError:
-            pass
-    except Exception:
-        pass
-
-    # naive fallback
-    data: dict[str, Any] = {}
-    current: Optional[str] = None
-    try:
-        text = cfg_path.read_text(encoding="utf-8", errors="ignore")
-        for raw in text.splitlines():
-            line = raw.strip()
-            if not line or line.startswith("#"):
-                continue
-            if line.startswith("[") and line.endswith("]"):
-                current = line[1:-1]
-                data.setdefault(current, {})
-            elif "=" in line and current:
-                k, v = [x.strip().strip("\"'") for x in line.split("=", 1)]
-                data[current][k] = v
-    except Exception:
-        return {}
-    return data
+    return load_toml(cfg_path)
 
 
 # -----------------------------
@@ -420,8 +391,11 @@ def load_session_signals(session_path: Path) -> Optional[SessionSignals]:
     sigf = session_path / "signals.json"
     if not sigf.exists():
         return None
+    text = safe_read_text(sigf)
+    if not text:
+        return None
     try:
-        data = json.loads(sigf.read_text())
+        data = json.loads(text)
         return SessionSignals(
             session_id=session_path.name,
             turn_count=data.get("turnCount", 0),
@@ -436,7 +410,7 @@ def load_session_signals(session_path: Path) -> Optional[SessionSignals]:
             agent_files_touched=data.get("agentFilesTouched", 0),
             raw=data,
         )
-    except Exception:
+    except (json.JSONDecodeError, TypeError, KeyError, ValueError):
         return None
 
 
@@ -452,24 +426,23 @@ def load_rewind_points(session_path: Path, limit: int = 20) -> list[RewindPoint]
     if not rpf.exists():
         return []
     out: list[RewindPoint] = []
-    try:
-        with open(rpf) as f:
-            for i, line in enumerate(f):
-                if i >= limit:
-                    break
-                try:
-                    d = json.loads(line)
-                    out.append(
-                        RewindPoint(
-                            prompt_index=d.get("prompt_index", i),
-                            created_at=d.get("created_at"),
-                            num_file_snapshots=len(d.get("file_snapshots", {})),
-                        )
-                    )
-                except Exception:
-                    continue
-    except Exception:
-        pass
+    text = safe_read_text(rpf)
+    if not text:
+        return out
+    for i, line in enumerate(text.splitlines()):
+        if i >= limit:
+            break
+        try:
+            d = json.loads(line)
+            out.append(
+                RewindPoint(
+                    prompt_index=d.get("prompt_index", i),
+                    created_at=d.get("created_at"),
+                    num_file_snapshots=len(d.get("file_snapshots", {})),
+                )
+            )
+        except (json.JSONDecodeError, TypeError, KeyError, ValueError):
+            continue
     return out
 
 
@@ -483,19 +456,18 @@ def tail_logs(grok_home: Path, lines: int = 50, level: Optional[str] = None) -> 
     if not lp.exists():
         return []
     out: list[dict] = []
-    try:
-        with open(lp, encoding="utf-8", errors="ignore") as f:
-            all_lines = f.readlines()[-lines * 2 :]
-        for raw in all_lines[-lines:]:
-            try:
-                d = json.loads(raw)
-                if level and d.get("lvl", "").lower() != level.lower():
-                    continue
-                out.append(d)
-            except Exception:
+    text = safe_read_text(lp)
+    if not text:
+        return out
+    all_lines = text.splitlines()[-lines * 2 :]
+    for raw in all_lines[-lines:]:
+        try:
+            d = json.loads(raw)
+            if level and d.get("lvl", "").lower() != level.lower():
                 continue
-    except Exception:
-        pass
+            out.append(d)
+        except (json.JSONDecodeError, TypeError, KeyError, AttributeError):
+            continue
     return out
 
 

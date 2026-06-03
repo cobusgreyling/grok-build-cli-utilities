@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 
 import typer
 
@@ -33,8 +34,6 @@ def show_config(
     cfg = load_config(grok_home)
 
     if json_out:
-        import json
-
         out = {"config": cfg, "grok_home": str(grok_home)}
         # also surface a few other files if present
         for extra in ["user-settings.json", "settings.json"]:
@@ -42,7 +41,7 @@ def show_config(
             if p.exists():
                 try:
                     out[extra] = json.loads(p.read_text())
-                except Exception:
+                except (json.JSONDecodeError, OSError, UnicodeDecodeError, ValueError):
                     pass
         console.print(json.dumps(out, indent=2))
         return
@@ -69,7 +68,7 @@ def show_config(
                 data = json.loads(p.read_text())
                 console.print(f"\n[bold]{name}[/bold]")
                 console.print(data)
-            except Exception:
+            except (json.JSONDecodeError, OSError, UnicodeDecodeError, ValueError):
                 pass
 
 

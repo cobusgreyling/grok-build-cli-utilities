@@ -109,7 +109,7 @@ def parse_timestamp(ts: Any) -> Optional[datetime]:
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
             return dt
-        except Exception:
+        except (ValueError, TypeError, OverflowError):
             pass
     return None
 
@@ -249,7 +249,7 @@ def parse_age_delta(spec: str) -> timedelta:
             return timedelta(hours=int(spec[:-1]))
         # bare number = days
         return timedelta(days=int(spec))
-    except Exception:
+    except (ValueError, TypeError, IndexError):
         # safe default
         return timedelta(days=90)
 
@@ -301,7 +301,7 @@ def search_sessions_sqlite(db_path: Path, query: str, limit: int = 50) -> list[d
             (query, limit),
         ).fetchall()
         return [dict(r) for r in rows]
-    except Exception:
+    except (sqlite3.Error, OSError, ValueError, TypeError):
         return []
 
 
@@ -356,3 +356,88 @@ def estimate_cost(
     key = "output" if is_output else "input"
     per_m = prices.get(key, 10.0)
     return (messages_or_tokens / 1_000_000.0) * per_m
+
+
+def load_toml(path: Path) -> dict[str, Any]:
+    """Load a .toml file robustly.
+
+    - Prefers tomllib (Python >= 3.11 stdlib)
+    - Falls back to tomli (backport, installed only on <3.11 via deps)
+    - Final naive line-based parser for simple cases (no real TOML features needed for grok config)
+    Returns {} on missing file or any parse/read error. Never raises to caller.
+    """
+    if not path.exists():
+        return {}
+
+    # Python 3.11+ stdlib
+    if sys.version_info >= (3, 11):
+        try:
+            import tomllib
+
+            with open(path, "rb") as f:
+                return tomllib.load(f)  # type: ignore[no-any-return]
+        except Exception:  # tomllib can raise various on bad toml; fallback
+            pass  # fall through to next strategy
+
+    # tomli backport
+    try:
+        import tomli
+
+        with open(path, "rb") as f:
+            return tomli.load(f)  # type: ignore[no-any-return]
+    except ImportError:
+        pass
+    except Exception:  # bad toml content etc; fallback
+        pass
+
+    # Very naive fallback (supports [section], [section.sub], key = "value", skips # comments)
+    data: dict[str, Any] = {}
+    current_dict: dict[str, Any] | None = None
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for raw in text.splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("[") and line.endswith("]"):
+                section = line[1:-1].strip()
+                parts = [p.strip() for p in section.split(".") if p.strip()]
+                cur: dict[str, Any] = data
+                for p in parts:
+                    if p not in cur or not isinstance(cur.get(p), dict):
+                        cur[p] = {}
+                    cur = cur[p]
+                current_dict = cur
+            elif "=" in line and current_dict is not None:
+                k, v = [x.strip().strip("\"'") for x in line.split("=", 1)]
+                current_dict[k] = v
+    except (OSError, UnicodeDecodeError, ValueError, KeyError, IndexError):
+        return {}
+    return data
+
+
+# --- Safe FS/JSON helpers to reduce broad exception handling in callers ---
+def safe_read_text(
+    path: Path, *, encoding: str = "utf-8", errors: str = "ignore", default: str = ""
+) -> str:
+    """Read text file; return default on any read/decode error."""
+    try:
+        return path.read_text(encoding=encoding, errors=errors)
+    except Exception:
+        return default
+
+
+def safe_json_load(path: Path | str, default: Any | None = None) -> Any:
+    """json.loads on file content or string; returns default ({} if None) on error."""
+    if default is None:
+        default = {}
+    try:
+        if isinstance(path, (str, Path)) and Path(path).exists():
+            text = safe_read_text(Path(path))
+        else:
+            text = str(path)
+        import json
+
+        return json.loads(text)
+    except Exception:
+        return default

@@ -60,7 +60,7 @@ def report(
                 for s in sessions
                 if (s.created_at or datetime.min.replace(tzinfo=timezone.utc)) >= cutoff
             ]
-        except Exception:
+        except (ValueError, TypeError, OverflowError):
             warn(f"Ignoring bad --since {since}")
 
     if not sessions:
@@ -228,7 +228,7 @@ def cost_report(
                 for s in sessions
                 if (s.created_at or datetime.min.replace(tzinfo=timezone.utc)) >= cutoff
             ]
-        except Exception:
+        except (ValueError, TypeError, OverflowError):
             warn(f"Ignoring bad --since {since}")
 
     if not sessions:

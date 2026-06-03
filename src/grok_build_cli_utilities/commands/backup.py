@@ -199,7 +199,7 @@ def restore_backup(
                 mf = tar.extractfile(MANIFEST_NAME)
                 if mf:
                     manifest = json.loads(mf.read().decode())
-    except Exception:
+    except (tarfile.TarError, OSError, json.JSONDecodeError, UnicodeDecodeError, ValueError):
         pass
 
     if manifest:
