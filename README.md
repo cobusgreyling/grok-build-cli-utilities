@@ -10,6 +10,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 
+**[🌐 Full Documentation & Live Showcase →](https://cobusgreyling.github.io/grok-build-cli-utilities/)**
+
 **Amazing CLI utilities for [Grok Build](https://x.ai) by Cobus Greyling.**
 
 A powerful, batteries-included collection of command-line tools that make you dramatically more productive with Grok Build.

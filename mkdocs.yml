@@ -9,18 +9,19 @@ edit_uri: edit/main/docs/
 theme:
   name: material
   palette:
+    # Dark mode first for a bold, modern landing page experience
+    - scheme: slate
+      primary: indigo
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
     - scheme: default
       primary: indigo
       accent: deep purple
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-    - scheme: slate
-      primary: indigo
-      accent: deep purple
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
   features:
     - navigation.instant
     - navigation.tracking
@@ -36,7 +37,8 @@ theme:
   logo: assets/header.jpg
   favicon: assets/header.jpg
 
-
+extra_css:
+  - stylesheets/extra.css
 
 extra:
   social:

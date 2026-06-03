@@ -1,0 +1,87 @@
+/* Custom styles for grok-utils GitHub Pages landing site */
+/* Dark mode by default + bolder typography for a stronger, more modern feel */
+
+:root {
+  /* Slightly bolder base */
+  --md-text-font: "system-ui", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Make headings much bolder */
+.md-typeset h1 {
+  font-weight: 800 !important;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+.md-typeset h2 {
+  font-weight: 700 !important;
+  letter-spacing: -0.015em;
+}
+
+.md-typeset h3 {
+  font-weight: 600 !important;
+}
+
+/* Header title bolder */
+.md-header__title {
+  font-weight: 700;
+}
+
+/* Stronger emphasis on the first intro paragraph on home */
+.md-typeset > p:first-of-type {
+  font-weight: 500;
+}
+
+/* Make inline code and keys pop more */
+.md-typeset code,
+.md-typeset kbd {
+  font-weight: 600;
+}
+
+/* Bolder navigation items */
+.md-nav__link {
+  font-weight: 500;
+}
+
+.md-nav__link--active {
+  font-weight: 700;
+}
+
+/* Enhance admonitions and tables for boldness */
+.md-typeset .admonition {
+  border-width: 2px;
+}
+
+.md-typeset table th {
+  font-weight: 700;
+}
+
+/* Dark mode specific tweaks for more impact */
+[data-md-color-scheme="slate"] {
+  /* Brighter teal accent feels bolder on dark */
+  --md-accent-fg-color: #14b8a6;
+  --md-accent-fg-color--transparent: rgba(20, 184, 166, 0.1);
+
+  /* Slightly stronger primary indigo */
+  --md-primary-fg-color: #6366f1;
+}
+
+/* Light mode keeps original but headings still bold */
+[data-md-color-scheme="default"] {
+  --md-accent-fg-color: #7c3aed;
+}
+
+/* Make the top navigation a bit more prominent */
+.md-header {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+[data-md-color-scheme="slate"] .md-header {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Hero image on home - slight lift */
+.md-typeset img[alt*="Grok Build CLI Utilities"] {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+}
