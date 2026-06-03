@@ -83,9 +83,8 @@ title: grok-utils
       <!-- Left: text content -->
       <div class="lg:w-3/5">
         <div class="inline-flex items-center gap-x-2 px-4 py-1.5 rounded-2xl bg-zinc-900 border border-zinc-800 mb-6">
-          <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-          <span class="text-sm font-medium tracking-tight text-zinc-300">Power tools for <span class="font-semibold text-white">Grok Build</span></span>
-        </div>
+     
+          
         
         <h1 class="font-display text-6xl md:text-7xl leading-[0.95] tracking-tighter font-semibold mb-4 text-white">
           The definitive<br>CLI toolkit for<br>Grok Build
