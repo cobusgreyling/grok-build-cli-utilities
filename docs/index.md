@@ -104,11 +104,7 @@ title: grok-utils
         </p>
         
         <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
-          <a href="https://github.com/cobusgreyling/grok-build-cli-utilities" 
-             class="grok-btn-primary">
-            <i class="fab fa-github"></i>
-            <span></span>
-          </a>
+         
           
           <a href="#get-started" 
              class="grok-btn-secondary">
