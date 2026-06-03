@@ -10,7 +10,7 @@ import tarfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator, Optional, Union
 
 import typer
 from dateutil import parser as date_parser
@@ -18,6 +18,16 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress
 from rich.table import Table
+
+# Select TOML loader: tomllib (stdlib 3.11+) aliased as tomli for unified API, else the backport.
+# The pyproject conditional dep ensures tomli is present on <3.11.
+if sys.version_info >= (3, 11):
+    import tomllib as tomli  # type: ignore[no-redef,import-not-found]
+else:
+    try:
+        import tomli  # type: ignore[no-redef]
+    except ImportError:
+        tomli = None  # type: ignore[assignment]
 
 console = Console()
 
@@ -361,38 +371,23 @@ def estimate_cost(
 def load_toml(path: Path) -> dict[str, Any]:
     """Load a .toml file robustly.
 
-    - Prefers tomllib (Python >= 3.11 stdlib)
-    - Falls back to tomli (backport, installed only on <3.11 via deps)
+    - Uses tomllib (Python >= 3.11 stdlib, aliased) or tomli backport
     - Final naive line-based parser for simple cases (no real TOML features needed for grok config)
     Returns {} on missing file or any parse/read error. Never raises to caller.
     """
     if not path.exists():
         return {}
 
-    # Python 3.11+ stdlib
-    if sys.version_info >= (3, 11):
+    if tomli is not None:
         try:
-            import tomllib
-
             with open(path, "rb") as f:
-                return tomllib.load(f)  # type: ignore[no-any-return]
-        except Exception:  # tomllib can raise various on bad toml; fallback
-            pass  # fall through to next strategy
-
-    # tomli backport
-    try:
-        import tomli
-
-        with open(path, "rb") as f:
-            return tomli.load(f)  # type: ignore[no-any-return]
-    except ImportError:
-        pass
-    except Exception:  # bad toml content etc; fallback
-        pass
+                return tomli.load(f)  # type: ignore[no-any-return]
+        except Exception:  # bad toml content; fallback to naive
+            pass
 
     # Very naive fallback (supports [section], [section.sub], key = "value", skips # comments)
     data: dict[str, Any] = {}
-    current_dict: dict[str, Any] | None = None
+    current_dict: Optional[dict[str, Any]] = None
     try:
         text = path.read_text(encoding="utf-8", errors="ignore")
         for raw in text.splitlines():
@@ -427,7 +422,7 @@ def safe_read_text(
         return default
 
 
-def safe_json_load(path: Path | str, default: Any | None = None) -> Any:
+def safe_json_load(path: Union[Path, str], default: Optional[Any] = None) -> Any:
     """json.loads on file content or string; returns default ({} if None) on error."""
     if default is None:
         default = {}
