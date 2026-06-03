@@ -301,3 +301,18 @@ body:has(.grok-landing) .grok-landing {
 .grok-landing * {
   box-sizing: border-box;
 }
+
+/* Force horizontal text for nav buttons and promo cards to fix vertical/garbled button text */
+.grok-nav a,
+.grok-landing .bg-white.rounded-2xl {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  flex-direction: row !important;
+}
+
+.grok-nav a span,
+.grok-landing .bg-white.rounded-2xl .font-semibold {
+  display: inline !important;
+  white-space: normal !important;
+  letter-spacing: normal !important;
+}
