@@ -72,12 +72,6 @@ title: grok-utils
       <a href="#utilities" class="text-zinc-400 hover:text-white transition-colors">Utilities</a>
       <a href="#showcases" class="text-zinc-400 hover:text-white transition-colors">Showcases</a>
       <a href="#get-started" class="text-zinc-400 hover:text-white transition-colors">Get Started</a>
-      <a href="https://github.com/cobusgreyling/grok-build-cli-utilities" target="_blank" 
-         class="flex items-center gap-x-2 px-4 py-2 rounded-xl bg-white text-zinc-950 text-sm font-medium hover:bg-zinc-100 transition-all"
-         aria-label="">
-        <i class="fab fa-github"></i>
-        <span>GitHub</span>
-      </a>
     </div>
   </div>
 </nav>
