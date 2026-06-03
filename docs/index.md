@@ -83,46 +83,70 @@ title: grok-utils
 
 <!-- Hero -->
 <div class="hero-bg border-b border-zinc-800" style="background: linear-gradient(180deg, #0a0a0a 0%, #111111 100%);">
-  <div class="max-w-screen-xl mx-auto px-6 pt-16 pb-12">
-    <div class="max-w-3xl">
-      <div class="inline-flex items-center gap-x-2 px-4 py-1.5 rounded-2xl bg-zinc-900 border border-zinc-800 mb-6">
-        <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-        <span class="text-sm font-medium tracking-tight text-zinc-300">Power tools for <span class="font-semibold text-white">Grok Build</span></span>
-      </div>
-      
-      <h1 class="font-display text-6xl md:text-7xl leading-[0.95] tracking-tighter font-semibold mb-4 text-white">
-        The definitive<br>CLI toolkit for<br>Grok Build
-      </h1>
-      
-      <p class="text-2xl text-zinc-400 max-w-lg tracking-tight mb-8">
-        12+ production-grade utilities.<br>
-        Sessions, skills, backups, analytics, MCP, plugins &amp; hooks.<br>
-        <span class="text-emerald-400 text-lg">Beautiful • Safe-by-default • Scriptable with --json</span>
-      </p>
-      
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
-        <a href="https://github.com/cobusgreyling/grok-build-cli-utilities" 
-           class="grok-btn-primary">
-          <i class="fab fa-github"></i>
-          <span>View on GitHub</span>
-        </a>
-        
-        <a href="#get-started" 
-           class="grok-btn-secondary">
-          Get started
-        </a>
-        
-        <a href="#utilities" 
-           class="grok-btn-secondary">
-          Explore utilities
-        </a>
-      </div>
-      
-      <div class="mt-8 flex items-center gap-x-4 text-sm text-zinc-500">
-        <div class="flex -space-x-1">
-          <div class="w-6 h-6 bg-zinc-800 border border-zinc-700 rounded-full"></div>
+  <div class="max-w-screen-xl mx-auto px-6 pt-16 pb-8">
+    <div class="flex flex-col lg:flex-row gap-8 items-start">
+      <!-- Left: text content -->
+      <div class="lg:w-3/5">
+        <div class="inline-flex items-center gap-x-2 px-4 py-1.5 rounded-2xl bg-zinc-900 border border-zinc-800 mb-6">
+          <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+          <span class="text-sm font-medium tracking-tight text-zinc-300">Power tools for <span class="font-semibold text-white">Grok Build</span></span>
         </div>
-        <span><strong class="text-zinc-400">Sole author &amp; maintainer:</strong> Cobus Greyling</span>
+        
+        <h1 class="font-display text-6xl md:text-7xl leading-[0.95] tracking-tighter font-semibold mb-4 text-white">
+          The definitive<br>CLI toolkit for<br>Grok Build
+        </h1>
+        
+        <p class="text-2xl text-zinc-400 max-w-lg tracking-tight mb-8">
+          12+ production-grade utilities.<br>
+          Sessions, skills, backups, analytics, MCP, plugins &amp; hooks.<br>
+          <span class="text-emerald-400 text-lg">Beautiful • Safe-by-default • Scriptable with --json</span>
+        </p>
+        
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <a href="https://github.com/cobusgreyling/grok-build-cli-utilities" 
+             class="grok-btn-primary">
+            <i class="fab fa-github"></i>
+            <span>View on GitHub</span>
+          </a>
+          
+          <a href="#get-started" 
+             class="grok-btn-secondary">
+            Get started
+          </a>
+          
+          <a href="#utilities" 
+             class="grok-btn-secondary">
+            Explore utilities
+          </a>
+        </div>
+        
+        <div class="mt-8 flex items-center gap-x-4 text-sm text-zinc-500">
+          <div class="flex -space-x-1">
+            <div class="w-6 h-6 bg-zinc-800 border border-zinc-700 rounded-full"></div>
+          </div>
+          <span><strong class="text-zinc-400">Sole author &amp; maintainer:</strong> Cobus Greyling</span>
+        </div>
+      </div>
+
+      <!-- Right: promo card to fill space and balance layout -->
+      <div class="lg:w-2/5 w-full">
+        <div class="bg-white text-zinc-950 rounded-2xl p-5 shadow-2xl">
+          <div class="flex items-center gap-4">
+            <div class="flex-shrink-0">
+              <div class="w-14 h-14 bg-[#238636] rounded-xl flex items-center justify-center">
+                <i class="fab fa-github text-white text-4xl"></i>
+              </div>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="font-semibold text-lg">View on GitHub</div>
+              <div class="text-xs text-zinc-500">Star the repo • See the code • Contribute</div>
+              <a href="https://github.com/cobusgreyling/grok-build-cli-utilities" 
+                 class="inline-block mt-2 text-sm font-medium text-blue-600 hover:underline">
+                github.com/cobusgreyling/grok-build-cli-utilities →
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -172,83 +196,92 @@ title: grok-utils
 
 <!-- The Utilities -->
 <div id="utilities" class="max-w-screen-xl mx-auto px-6 py-8">
-  <div class="flex items-end justify-between mb-6">
-    <div>
-      <span class="grok-tag">THE TOOLKIT</span>
-      <h2 class="section-header text-white mt-1">The Utilities</h2>
-    </div>
-    <a href="commands/" class="text-sm text-emerald-400 hover:text-emerald-300 flex items-center gap-x-1">
-      Full command reference <i class="fas fa-arrow-right text-xs"></i>
-    </a>
-  </div>
-
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    <!-- sessions -->
-    <div class="grok-card">
-      <div class="flex items-center justify-between mb-3">
-        <div class="font-semibold text-lg text-white tracking-tight">sessions</div>
-        <span class="grok-tag">Core</span>
+  <div class="flex gap-8">
+    <!-- Left content: header + grid -->
+    <div class="flex-1">
+      <div class="flex items-end justify-between mb-6">
+        <div>
+          <span class="grok-tag">THE TOOLKIT</span>
+          <h2 class="section-header text-white mt-1">The Utilities</h2>
+        </div>
       </div>
-      <p class="text-sm text-zinc-400 mb-4">Advanced session browser, search (FTS), deep analysis, export (md/html/json), resume, and safe pruning.</p>
-      <div class="grok-code text-xs text-emerald-300 mb-2">grok-utils sessions list --project acme --limit 20</div>
-      <div class="grok-code text-xs text-emerald-300">grok-utils sessions analyze 019e87 --deep</div>
-    </div>
 
-    <!-- skills -->
-    <div class="grok-card">
-      <div class="flex items-center justify-between mb-3">
-        <div class="font-semibold text-lg text-white tracking-tight">skills</div>
-        <span class="grok-tag">Core</span>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- sessions -->
+        <div class="grok-card">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-semibold text-lg text-white tracking-tight">sessions</div>
+            <span class="grok-tag">Core</span>
+          </div>
+          <p class="text-sm text-zinc-400 mb-4">Advanced session browser, search (FTS), deep analysis, export (md/html/json), resume, and safe pruning.</p>
+          <div class="grok-code text-xs text-emerald-300 mb-2">grok-utils sessions list --project acme --limit 20</div>
+          <div class="grok-code text-xs text-emerald-300">grok-utils sessions analyze 019e87 --deep</div>
+        </div>
+
+        <!-- skills -->
+        <div class="grok-card">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-semibold text-lg text-white tracking-tight">skills</div>
+            <span class="grok-tag">Core</span>
+          </div>
+          <p class="text-sm text-zinc-400 mb-4">Full lifecycle: discover (priority-aware), create high-quality starters, validate, pack/unpack for sharing.</p>
+          <div class="grok-code text-xs text-emerald-300 mb-2">grok-utils skills create deploy --desc "..."</div>
+          <div class="grok-code text-xs text-emerald-300">grok-utils skills validate ./my-skill</div>
+        </div>
+
+        <!-- backup -->
+        <div class="grok-card">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-semibold text-lg text-white tracking-tight">backup</div>
+            <span class="grok-tag">Core</span>
+          </div>
+          <p class="text-sm text-zinc-400 mb-4">Industrial-strength backups with SHA-256 manifests. Selective sessions by project. Extremely safe restore (dry-run default).</p>
+          <div class="grok-code text-xs text-emerald-300">grok-utils backup create --include-sessions</div>
+        </div>
+
+        <!-- usage -->
+        <div class="grok-card">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-semibold text-lg text-white tracking-tight">usage</div>
+            <span class="grok-tag">Analytics</span>
+          </div>
+          <p class="text-sm text-zinc-400 mb-4">Stunning reports, sparklines, timelines, model breakdowns + rough cost estimates. Group by project or model.</p>
+          <div class="grok-code text-xs text-emerald-300 mb-2">grok-utils usage report --by project --top 8</div>
+          <div class="grok-code text-xs text-emerald-300">grok-utils usage cost --by model</div>
+        </div>
+
+        <!-- mcp + worktree + others -->
+        <div class="grok-card">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-semibold text-lg text-white tracking-tight">mcp</div>
+            <span class="grok-tag">Ecosystem</span>
+          </div>
+          <p class="text-sm text-zinc-400 mb-4">Inspect config, doctor PATH checks, test servers, and easy example injection for filesystem, GitHub, SQLite etc.</p>
+          <div class="grok-code text-xs text-emerald-300">grok-utils mcp doctor</div>
+        </div>
+
+        <div class="grok-card">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-semibold text-lg text-white tracking-tight">worktree + memory</div>
+            <span class="grok-tag">Hygiene</span>
+          </div>
+          <p class="text-sm text-zinc-400 mb-4">Correlate git worktrees with sessions (find zombies). Cross-session memory explorer and search.</p>
+          <div class="grok-code text-xs text-emerald-300">grok-utils worktree prune-orphaned --dry-run</div>
+        </div>
       </div>
-      <p class="text-sm text-zinc-400 mb-4">Full lifecycle: discover (priority-aware), create high-quality starters, validate, pack/unpack for sharing.</p>
-      <div class="grok-code text-xs text-emerald-300 mb-2">grok-utils skills create deploy --desc "..."</div>
-      <div class="grok-code text-xs text-emerald-300">grok-utils skills validate ./my-skill</div>
-    </div>
 
-    <!-- backup -->
-    <div class="grok-card">
-      <div class="flex items-center justify-between mb-3">
-        <div class="font-semibold text-lg text-white tracking-tight">backup</div>
-        <span class="grok-tag">Core</span>
+      <div class="mt-4 text-sm text-zinc-500">
+        Plus <strong class="text-zinc-400">plugins</strong>, <strong class="text-zinc-400">hooks</strong>, <strong class="text-zinc-400">config</strong>, <strong class="text-zinc-400">logs</strong>, and the excellent <strong class="text-white">doctor</strong> health check.
+        <a href="commands/" class="text-emerald-400 hover:underline ml-1">See every command →</a>
       </div>
-      <p class="text-sm text-zinc-400 mb-4">Industrial-strength backups with SHA-256 manifests. Selective sessions by project. Extremely safe restore (dry-run default).</p>
-      <div class="grok-code text-xs text-emerald-300">grok-utils backup create --include-sessions</div>
     </div>
 
-    <!-- usage -->
-    <div class="grok-card">
-      <div class="flex items-center justify-between mb-3">
-        <div class="font-semibold text-lg text-white tracking-tight">usage</div>
-        <span class="grok-tag">Analytics</span>
-      </div>
-      <p class="text-sm text-zinc-400 mb-4">Stunning reports, sparklines, timelines, model breakdowns + rough cost estimates. Group by project or model.</p>
-      <div class="grok-code text-xs text-emerald-300 mb-2">grok-utils usage report --by project --top 8</div>
-      <div class="grok-code text-xs text-emerald-300">grok-utils usage cost --by model</div>
+    <!-- Right: vertical label to fill space and match the design intent in screenshots -->
+    <div class="hidden xl:flex flex-col items-center justify-center text-blue-400" 
+         style="writing-mode: vertical-rl; text-orientation: mixed; letter-spacing: 2px; font-size: 0.75rem; font-weight: 600; width: 32px;">
+      FULL COMMAND REFERENCE
+      <i class="fas fa-arrow-right text-xl mt-4" style="writing-mode: horizontal-tb; transform: rotate(90deg);"></i>
     </div>
-
-    <!-- mcp + worktree + others -->
-    <div class="grok-card">
-      <div class="flex items-center justify-between mb-3">
-        <div class="font-semibold text-lg text-white tracking-tight">mcp</div>
-        <span class="grok-tag">Ecosystem</span>
-      </div>
-      <p class="text-sm text-zinc-400 mb-4">Inspect config, doctor PATH checks, test servers, and easy example injection for filesystem, GitHub, SQLite etc.</p>
-      <div class="grok-code text-xs text-emerald-300">grok-utils mcp doctor</div>
-    </div>
-
-    <div class="grok-card">
-      <div class="flex items-center justify-between mb-3">
-        <div class="font-semibold text-lg text-white tracking-tight">worktree + memory</div>
-        <span class="grok-tag">Hygiene</span>
-      </div>
-      <p class="text-sm text-zinc-400 mb-4">Correlate git worktrees with sessions (find zombies). Cross-session memory explorer and search.</p>
-      <div class="grok-code text-xs text-emerald-300">grok-utils worktree prune-orphaned --dry-run</div>
-    </div>
-  </div>
-
-  <div class="mt-4 text-sm text-zinc-500">
-    Plus <strong class="text-zinc-400">plugins</strong>, <strong class="text-zinc-400">hooks</strong>, <strong class="text-zinc-400">config</strong>, <strong class="text-zinc-400">logs</strong>, and the excellent <strong class="text-white">doctor</strong> health check.
-    <a href="commands/" class="text-emerald-400 hover:underline ml-1">See every command →</a>
   </div>
 </div>
 
