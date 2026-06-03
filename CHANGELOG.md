@@ -4,18 +4,32 @@ All notable changes to grok-build-cli-utilities will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-06-03
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
-- **Full Tier 1/2/3 rollout**: `plugins` (list/info/validate/inventory), `hooks` (list/create/validate/doctor + scaffolds), `sessions export` (md|html|json + signals), `sessions analyze`, `usage cost` (pricing proxy), `config` (show/get/paths/validate), `logs tail`.
-- `sessions resume` + CWD-aware most-recent (earlier increment).
-- Expanded doctor (plugins/hooks), deep parsers (signals/rewind_points), pricing, rules stub.
-- Comprehensive tests, all quality gates green.
+- Shared `load_toml()` in common (prefers `tomllib` on Python >=3.11, falls back to `tomli`, improved naive with dotted section support). Used by `mcp`, `config`, `doctor`, parsers.
+- `safe_read_text()` and `safe_json_load()` helpers in common to reduce duplication and broad excepts.
+- `python -m grok_build_cli_utilities` support via `__main__.py`.
+- `CODE_OF_CONDUCT.md`.
+- More tests exercising analyze/export/resume (json), usage cost, config get, load_toml, signals/rewinds, tail_logs, project rules, plugins/hooks create paths (coverage up ~5-10 pts on parsers/sessions/usage/config).
+- CI: concurrency cancel-in-progress, wheel build + twine check verification on every matrix run (ubuntu + macos).
+- PyPI badge in README.
 
 ### Changed
-- cli registration + main help text updated for 4 new groups + new sessions/usage subs.
-- Updated `sessions --help` tests + many new fake-FS tests for plugins/hooks/config/logs/sessions export etc.
+- `parse_plugin()` now correctly returns `None` for non-plugin directories (was dead `pass` guard) — fixes junk dir pollution in `plugins list`.
+- Centralized TOML loading; removed duplicated naive parser code in `parsers.py` and `mcp.py`.
+- Reduced bare `except Exception:` from ~35 to ~12 (most remaining are intentional "best effort" fallbacks in load_toml / _safe_* doctor counts / yaml edge). Switched many to specific (JSONDecode, OSError, ValueError, subprocess.* etc).
+- Updated version to 0.3.1, test expectations, bug report template placeholder.
+- README install section emphasizes `pipx`, added 0.3.1 highlights, doctor in verify, expanded command count note.
+- Minor: bug template version, test comments, mypy/ruff clean.
+
+### Fixed
+- Plugin discovery would treat arbitrary subdirs under .grok/plugins as valid plugins.
+- Inconsistent TOML parsing between mcp/doctor vs config command.
+- Potential NameError on json in except clauses in config.py non-json path (now top-level import).
 
 ## [0.3.0] - 2026-06-03
 

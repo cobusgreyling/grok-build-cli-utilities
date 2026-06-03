@@ -5,6 +5,7 @@
 # grok-build-cli-utilities
 
 [![CI](https://github.com/cobusgreyling/grok-build-cli-utilities/actions/workflows/ci.yml/badge.svg)](https://github.com/cobusgreyling/grok-build-cli-utilities/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/grok-build-cli-utilities.svg)](https://pypi.org/project/grok-build-cli-utilities/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 
@@ -12,12 +13,14 @@
 
 A powerful, batteries-included collection of command-line tools that make you dramatically more productive with Grok Build.
 
-- 7 carefully crafted utilities + `doctor` diagnostic command
+- 12+ power commands (sessions, skills, backup, usage+cost, plugins, hooks, config, logs, mcp, worktree, memory, `doctor`)
 - Beautiful rich terminal output (tables, progress, sparklines, bars)
 - Safe-by-default (dry-run on anything destructive)
 - Works directly against your real `~/.grok` data
 - Scriptable with `--json`
 - Zero-config — just works
+
+**New in 0.3.1**: shared robust TOML loader (tomllib on 3.11+, tomli, improved naive), safe FS/JSON helpers, reduced broad exception handling, more tests + coverage, CI on macOS + build verification, `__main__` support, CODE_OF_CONDUCT, docs/CI polish, and bug fixes (e.g. plugin discovery).
 
 **Sole author & maintainer:** Cobus Greyling
 
@@ -25,29 +28,33 @@ A powerful, batteries-included collection of command-line tools that make you dr
 
 ## Installation
 
+**Recommended (PyPI + pipx for isolation):**
+
 ```bash
-# From PyPI (recommended)
+# Best for CLI tools
+pipx install grok-build-cli-utilities
+
+# Or with pip
 pip install grok-build-cli-utilities
-# or with pipx for an isolated CLI:
-pipx install grok-build-cli-utilities
+```
 
-# Even better for CLI tools: isolated install with pipx (recommended)
-pipx install grok-build-cli-utilities
+**From source (latest development):**
 
-# Or from source (latest development)
+```bash
 git clone https://github.com/cobusgreyling/grok-build-cli-utilities.git
 cd grok-build-cli-utilities
 pip install -e ".[dev]"
-# Then ensure the console script dir is on PATH, or run via `python -m pip ...`
+# (or `python -m pip install -e ".[dev]"`)
 ```
 
-The command `grok-utils` will be on your PATH.
+The command `grok-utils` (and `python -m grok_build_cli_utilities`) will be available.
 
 Verify:
 
 ```bash
 grok-utils --version
 grok-utils --help
+grok-utils doctor
 ```
 
 ---
