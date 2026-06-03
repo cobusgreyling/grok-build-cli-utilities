@@ -107,7 +107,7 @@ title: grok-utils
           <a href="https://github.com/cobusgreyling/grok-build-cli-utilities" 
              class="grok-btn-primary">
             <i class="fab fa-github"></i>
-            <span>View on GitHub</span>
+            <span>View</span>
           </a>
           
           <a href="#get-started" 
