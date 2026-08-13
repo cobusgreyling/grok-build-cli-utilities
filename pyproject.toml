@@ -48,7 +48,7 @@ dependencies = [
 dev = [
   "pytest>=7.0",
   "pytest-cov>=4.0",
-  "ruff>=0.1.0",
+  "ruff>=0.15.0,<0.16",
   "mypy>=1.0",
   "build>=1.0",
 ]
@@ -88,3 +88,8 @@ python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+
+
+[tool.ruff.lint]
+# Typer uses Option/Argument as defaults; intentional broad excepts in discovery helpers.
+ignore = ["B008"]
