@@ -10,7 +10,7 @@ import tarfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterator, Optional, Union
+from typing import Any, Iterator, Optional, Union, cast
 
 import typer
 from dateutil import parser as date_parser
@@ -115,7 +115,8 @@ def parse_timestamp(ts: Any) -> Optional[datetime]:
         return datetime.fromtimestamp(ts, tz=timezone.utc)
     if isinstance(ts, str):
         try:
-            dt = date_parser.isoparse(ts)
+            # dateutil stubs type isoparse as Any; cast keeps mypy happy
+            dt = cast(datetime, date_parser.isoparse(ts))
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
             return dt
