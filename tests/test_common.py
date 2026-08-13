@@ -9,24 +9,24 @@ from pathlib import Path
 import pytest
 
 from grok_build_cli_utilities.utils.common import (
+    SessionSummary,
+    count_tool_calls,
+    format_age,
+    format_dt,
     get_grok_home,
     get_sessions_dir,
     get_skills_dirs,
-    parse_timestamp,
-    format_age,
-    format_dt,
     iter_sessions,
     load_session_updates,
-    count_tool_calls,
     make_table,
+    parse_timestamp,
     safe_extract_tar,
-    SessionSummary,
 )
 from grok_build_cli_utilities.utils.parsers import (
+    Skill,
     parse_skill,
     skill_template,
     validate_skill,
-    Skill,
 )
 
 
@@ -167,9 +167,8 @@ def test_safe_extract_tar_blocks_traversal(tmp_path: Path):
         tar.addfile(evil)
 
     extract_to = tmp_path / "out2"
-    with tarfile.open(tar_path, "r:gz") as tar:
-        with pytest.raises(RuntimeError, match="traversal"):
-            safe_extract_tar(tar, extract_to)
+    with tarfile.open(tar_path, "r:gz") as tar, pytest.raises(RuntimeError, match="traversal"):
+        safe_extract_tar(tar, extract_to)
 
     # nothing should have been written outside
     assert not (tmp_path / "etc").exists()
@@ -191,7 +190,7 @@ def test_parse_age_delta():
 
 
 def test_load_toml_and_safe_helpers(tmp_path: Path):
-    from grok_build_cli_utilities.utils.common import load_toml, safe_read_text, safe_json_load
+    from grok_build_cli_utilities.utils.common import load_toml, safe_json_load, safe_read_text
 
     # missing
     assert load_toml(tmp_path / "no.toml") == {}
@@ -216,9 +215,9 @@ def test_load_toml_and_safe_helpers(tmp_path: Path):
 
 def test_session_signals_and_rewinds(tmp_path: Path):
     from grok_build_cli_utilities.utils.parsers import (
-        load_session_signals,
-        load_rewind_points,
         SessionSignals,
+        load_rewind_points,
+        load_session_signals,
     )
 
     sess = tmp_path / "sess123"
@@ -247,7 +246,7 @@ def test_session_signals_and_rewinds(tmp_path: Path):
 
 
 def test_tail_logs_and_project_rules(tmp_path: Path, monkeypatch):
-    from grok_build_cli_utilities.utils.parsers import tail_logs, iter_project_rules
+    from grok_build_cli_utilities.utils.parsers import iter_project_rules, tail_logs
 
     grok = tmp_path / ".grok"
     logdir = grok / "logs"

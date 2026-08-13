@@ -7,10 +7,11 @@ import os
 import sqlite3
 import sys
 import tarfile
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterator, Optional, Union, cast
+from typing import Any, cast
 
 import typer
 from dateutil import parser as date_parser
@@ -35,7 +36,7 @@ console = Console()
 DEFAULT_GROK_HOME = Path.home() / ".grok"
 
 
-def get_grok_home(custom: Optional[Path] = None) -> Path:
+def get_grok_home(custom: Path | None = None) -> Path:
     """Discover Grok home directory.
 
     Priority:
@@ -95,7 +96,7 @@ def get_logs_path(grok_home: Path) -> Path:
     return grok_home / "logs" / "unified.jsonl"
 
 
-def find_repo_root(start: Optional[Path] = None) -> Optional[Path]:
+def find_repo_root(start: Path | None = None) -> Path | None:
     """Walk up to find .git directory."""
     p = (start or Path.cwd()).resolve()
     for parent in [p] + list(p.parents):
@@ -104,7 +105,7 @@ def find_repo_root(start: Optional[Path] = None) -> Optional[Path]:
     return None
 
 
-def parse_timestamp(ts: Any) -> Optional[datetime]:
+def parse_timestamp(ts: Any) -> datetime | None:
     """Parse various timestamp formats to aware datetime."""
     if ts is None:
         return None
@@ -131,9 +132,9 @@ class SessionSummary:
 
     id: str
     cwd: str
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime]
-    last_active_at: Optional[datetime]
+    created_at: datetime | None
+    updated_at: datetime | None
+    last_active_at: datetime | None
     num_messages: int
     num_chat_messages: int
     current_model_id: str
@@ -142,7 +143,7 @@ class SessionSummary:
     summary_text: str = ""
 
 
-def iter_sessions(grok_home: Path, progress: Optional[Progress] = None) -> Iterator[SessionSummary]:
+def iter_sessions(grok_home: Path, progress: Progress | None = None) -> Iterator[SessionSummary]:
     """Yield all sessions by walking summaries. Fast path using summary.json."""
     sessions_root = get_sessions_dir(grok_home)
     if not sessions_root.exists():
@@ -219,13 +220,13 @@ def count_tool_calls(updates: list[dict]) -> dict[str, int]:
     return counts
 
 
-def format_dt(dt: Optional[datetime]) -> str:
+def format_dt(dt: datetime | None) -> str:
     if not dt:
         return "—"
     return dt.astimezone().strftime("%Y-%m-%d %H:%M")
 
 
-def format_age(dt: Optional[datetime]) -> str:
+def format_age(dt: datetime | None) -> str:
     if not dt:
         return "—"
     delta = datetime.now(timezone.utc) - dt
@@ -296,7 +297,7 @@ def confirm_or_exit(prompt: str = "Are you sure?") -> bool:
     return typer.confirm(prompt, default=False)
 
 
-def get_sqlite_search_db(grok_home: Path) -> Optional[Path]:
+def get_sqlite_search_db(grok_home: Path) -> Path | None:
     db = get_sessions_dir(grok_home) / "session_search.sqlite"
     return db if db.exists() else None
 
@@ -388,7 +389,7 @@ def load_toml(path: Path) -> dict[str, Any]:
 
     # Very naive fallback (supports [section], [section.sub], key = "value", skips # comments)
     data: dict[str, Any] = {}
-    current_dict: Optional[dict[str, Any]] = None
+    current_dict: dict[str, Any] | None = None
     try:
         text = path.read_text(encoding="utf-8", errors="ignore")
         for raw in text.splitlines():
@@ -423,7 +424,7 @@ def safe_read_text(
         return default
 
 
-def safe_json_load(path: Union[Path, str], default: Optional[Any] = None) -> Any:
+def safe_json_load(path: Path | str, default: Any | None = None) -> Any:
     """json.loads on file content or string; returns default ({} if None) on error."""
     if default is None:
         default = {}

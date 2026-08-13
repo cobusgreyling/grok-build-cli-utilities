@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -144,7 +143,7 @@ def plugin_info(
 @app.command("validate")
 def validate(
     ctx: typer.Context,
-    path: Optional[str] = typer.Argument(None, help="Path to plugin dir (default: scan all)"),
+    path: str | None = typer.Argument(None, help="Path to plugin dir (default: scan all)"),
     json_out: bool = typer.Option(False, "--json"),
 ) -> None:
     """Validate one plugin or all discovered ones."""
@@ -233,7 +232,7 @@ def inventory(ctx: typer.Context, json_out: bool = typer.Option(False, "--json")
 
 
 # Optional delegation helper (can be called from doctor or elsewhere)
-def _run_native_plugin_list(grok_home: Path) -> Optional[str]:
+def _run_native_plugin_list(grok_home: Path) -> str | None:
     grok_bin = grok_home / "bin" / "grok"
     if not grok_bin.exists():
         return None

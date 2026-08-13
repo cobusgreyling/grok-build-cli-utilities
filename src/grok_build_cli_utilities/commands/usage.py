@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import typer
 from rich.table import Table
@@ -43,7 +42,7 @@ def _ascii_bar(value: int, maxv: int, width: int = 24) -> str:
 @app.command("report")
 def report(
     ctx: typer.Context,
-    since: Optional[str] = typer.Option(None, "--since", help="e.g. 2026-05-01"),
+    since: str | None = typer.Option(None, "--since", help="e.g. 2026-05-01"),
     by: str = typer.Option("project", "--by", help="Group by: project | model | day"),
     top: int = typer.Option(10, "--top", help="Show top N"),
     json_out: bool = typer.Option(False, "--json"),
@@ -209,7 +208,7 @@ def timeline(ctx: typer.Context, days: int = typer.Option(30, "--days", "-d")) -
 @app.command("cost")
 def cost_report(
     ctx: typer.Context,
-    since: Optional[str] = typer.Option(None, "--since"),
+    since: str | None = typer.Option(None, "--since"),
     by: str = typer.Option("model", "--by", help="Group cost by: model | project"),
     top: int = typer.Option(8, "--top"),
     json_out: bool = typer.Option(False, "--json"),

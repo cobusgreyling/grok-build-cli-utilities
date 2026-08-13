@@ -4,16 +4,15 @@ from __future__ import annotations
 
 import tarfile
 from pathlib import Path
-from typing import Optional
 
 import typer
 
 from ..utils.common import (
+    Panel,
     console,
     error,
     get_grok_home,
     make_table,
-    Panel,
     safe_extract_tar,
     success,
     warn,
@@ -151,7 +150,7 @@ def create(
 @app.command("validate")
 def validate(
     ctx: typer.Context,
-    path: Optional[Path] = typer.Argument(
+    path: Path | None = typer.Argument(
         None, help="Path to skill dir or SKILL.md (defaults to scan all)"
     ),
 ) -> None:
@@ -195,11 +194,11 @@ def validate(
 def pack(
     ctx: typer.Context,
     name: str = typer.Argument(..., help="Skill name to pack"),
-    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output .tar.gz path"),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Output .tar.gz path"),
 ) -> None:
     """Package a skill directory into a portable .tar.gz (for sharing or backup)."""
     grok_home = get_grok_home(ctx.obj.get("grok_home") if ctx.obj else None)
-    skill: Optional[Skill] = None
+    skill: Skill | None = None
     for s in iter_skills(grok_home):
         if s.name == name.lower():
             skill = s
@@ -219,7 +218,7 @@ def pack(
 def unpack(
     ctx: typer.Context,
     archive: Path = typer.Argument(..., exists=True, help="The .tar.gz created by pack"),
-    dest: Optional[Path] = typer.Option(
+    dest: Path | None = typer.Option(
         None, "--dest", "-d", help="Where to extract (default: ~/.grok/skills)"
     ),
 ) -> None:

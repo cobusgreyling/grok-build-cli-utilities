@@ -6,13 +6,13 @@ import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.progress import Progress
 from rich.table import Table
 
 from ..utils.common import (
+    Panel,
     console,
     count_tool_calls,
     error,
@@ -20,15 +20,16 @@ from ..utils.common import (
     format_dt,
     get_grok_home,
     get_sqlite_search_db,
-    info as ui_info,
     iter_sessions,
     load_session_updates,
     make_table,
-    Panel,
     parse_age_delta,
     search_sessions_sqlite,
     success,
     warn,
+)
+from ..utils.common import (
+    info as ui_info,
 )
 from ..utils.parsers import (
     load_rewind_points,
@@ -42,11 +43,9 @@ app = typer.Typer(help="Powerful Grok Build session tools", no_args_is_help=True
 def list_sessions(
     ctx: typer.Context,
     limit: int = typer.Option(30, "--limit", "-l", help="Max sessions to show"),
-    project: Optional[str] = typer.Option(
-        None, "--project", "-p", help="Filter by substring in cwd"
-    ),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help="Filter by current model"),
-    since: Optional[str] = typer.Option(None, "--since", help="ISO date, e.g. 2026-05-01"),
+    project: str | None = typer.Option(None, "--project", "-p", help="Filter by substring in cwd"),
+    model: str | None = typer.Option(None, "--model", "-m", help="Filter by current model"),
+    since: str | None = typer.Option(None, "--since", help="ISO date, e.g. 2026-05-01"),
     json_out: bool = typer.Option(False, "--json", help="Output JSON for scripting"),
 ) -> None:
     """List recent sessions with rich filters."""
@@ -259,7 +258,7 @@ def stats(ctx: typer.Context) -> None:
 def prune(
     ctx: typer.Context,
     older_than: str = typer.Option("90d", "--older-than", help="e.g. 30d, 2w, 6mo, 1y, 48h"),
-    project: Optional[str] = typer.Option(None, "--project"),
+    project: str | None = typer.Option(None, "--project"),
     dry_run: bool = typer.Option(
         True, "--dry-run/--no-dry-run", help="Default safe: only show what would be deleted"
     ),
@@ -382,7 +381,7 @@ def export_session(
     ctx: typer.Context,
     session_id: str = typer.Argument(..., help="Session ID (prefix ok)"),
     fmt: str = typer.Option("md", "--format", "-f", help="md | html | json"),
-    out: Optional[str] = typer.Option(None, "--out", "-o", help="Write to file instead of stdout"),
+    out: str | None = typer.Option(None, "--out", "-o", help="Write to file instead of stdout"),
     json_out: bool = typer.Option(False, "--json", help="When fmt=json this is implied"),
 ) -> None:
     """Export a session transcript/summary to markdown, simple HTML or JSON.
@@ -466,7 +465,7 @@ def export_session(
 @app.command("resume")
 def resume(
     ctx: typer.Context,
-    session_id: Optional[str] = typer.Argument(
+    session_id: str | None = typer.Argument(
         None, help="Full or prefix session ID (omitted = most recent for CWD)"
     ),
     json_out: bool = typer.Option(

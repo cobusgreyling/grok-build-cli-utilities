@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import typer
 
 from ..utils.common import (
@@ -23,7 +21,7 @@ app = typer.Typer(
 def logs_tail(
     ctx: typer.Context,
     n: int = typer.Option(30, "--lines", "-n"),
-    level: Optional[str] = typer.Option(None, "--level", "-l", help="error | info | warn"),
+    level: str | None = typer.Option(None, "--level", "-l", help="error | info | warn"),
     json_out: bool = typer.Option(False, "--json"),
 ) -> None:
     """Show the last N log lines (optionally filtered by level)."""

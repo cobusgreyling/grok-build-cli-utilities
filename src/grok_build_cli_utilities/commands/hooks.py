@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -26,7 +25,7 @@ app = typer.Typer(
 @app.command("list")
 def list_hooks(
     ctx: typer.Context,
-    event: Optional[str] = typer.Option(
+    event: str | None = typer.Option(
         None, "--event", "-e", help="Filter to specific event e.g. SessionStart"
     ),
     json_out: bool = typer.Option(False, "--json"),
@@ -77,7 +76,7 @@ def create_hook(
     ctx: typer.Context,
     event: str = typer.Argument(..., help="Event name e.g. SessionStart, PostToolUse, PreToolUse"),
     name: str = typer.Option("my-hook", "--name", "-n", help="Base name for the hook file"),
-    out: Optional[str] = typer.Option(
+    out: str | None = typer.Option(
         None, "--out", "-o", help="Output file path (default: ~/.grok/hooks/<name>.json)"
     ),
 ) -> None:
@@ -121,9 +120,7 @@ def create_hook(
 @app.command("validate")
 def validate_hooks(
     ctx: typer.Context,
-    path: Optional[str] = typer.Argument(
-        None, help="Specific hooks.json to validate (default: all)"
-    ),
+    path: str | None = typer.Argument(None, help="Specific hooks.json to validate (default: all)"),
     json_out: bool = typer.Option(False, "--json"),
 ) -> None:
     """Basic structural validation of hooks files."""

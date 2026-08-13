@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -53,7 +52,7 @@ def version_callback(value: bool) -> None:
 @app.callback()
 def main(
     ctx: typer.Context,
-    grok_home: Optional[Path] = typer.Option(
+    grok_home: Path | None = typer.Option(
         None,
         "--grok-home",
         "-g",

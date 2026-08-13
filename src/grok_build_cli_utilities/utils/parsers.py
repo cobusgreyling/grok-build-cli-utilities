@@ -6,12 +6,11 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
 from .common import find_repo_root, safe_json_load, safe_read_text
-
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
@@ -30,7 +29,7 @@ class Skill:
         return bool(self.name and self.description)
 
 
-def parse_skill(skill_dir: Path, scope: str = "user") -> Optional[Skill]:
+def parse_skill(skill_dir: Path, scope: str = "user") -> Skill | None:
     """Parse a skill directory. Returns None if no/invalid SKILL.md."""
     md = skill_dir / "SKILL.md"
     if not md.exists():
@@ -179,7 +178,7 @@ def _looks_like_plugin(p: Path) -> bool:
     return False
 
 
-def parse_plugin(plugin_dir: Path, scope: str = "user") -> Optional[Plugin]:
+def parse_plugin(plugin_dir: Path, scope: str = "user") -> Plugin | None:
     """Parse a plugin directory or manifest. Best effort, very tolerant."""
     if not _looks_like_plugin(plugin_dir):
         return None
@@ -234,8 +233,9 @@ def parse_plugin(plugin_dir: Path, scope: str = "user") -> Optional[Plugin]:
 
 def iter_plugins(grok_home: Path, include_marketplace: bool = False) -> list[Plugin]:
     """Discover plugins from standard locations. Dedup by name (higher scope wins)."""
-    from .common import get_plugin_dirs
     import os as _os  # local alias to avoid top level if not wanted
+
+    from .common import get_plugin_dirs
 
     seen: set[str] = set()
     results: list[Plugin] = []
@@ -387,7 +387,7 @@ class SessionSignals:
     raw: dict[str, Any] = field(default_factory=dict)
 
 
-def load_session_signals(session_path: Path) -> Optional[SessionSignals]:
+def load_session_signals(session_path: Path) -> SessionSignals | None:
     sigf = session_path / "signals.json"
     if not sigf.exists():
         return None
@@ -417,7 +417,7 @@ def load_session_signals(session_path: Path) -> Optional[SessionSignals]:
 @dataclass
 class RewindPoint:
     prompt_index: int
-    created_at: Optional[str] = None
+    created_at: str | None = None
     num_file_snapshots: int = 0
 
 
@@ -449,7 +449,7 @@ def load_rewind_points(session_path: Path, limit: int = 20) -> list[RewindPoint]
 # -----------------------------
 # Logs (simple)
 # -----------------------------
-def tail_logs(grok_home: Path, lines: int = 50, level: Optional[str] = None) -> list[dict]:
+def tail_logs(grok_home: Path, lines: int = 50, level: str | None = None) -> list[dict]:
     from .common import get_logs_path
 
     lp = get_logs_path(grok_home)

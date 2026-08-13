@@ -7,19 +7,18 @@ import json
 import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.progress import Progress
 
 from ..utils.common import (
+    Panel,
     console,
     error,
     get_grok_home,
     get_sessions_dir,
     info,
     make_table,
-    Panel,
     safe_extract_tar,
     success,
     warn,
@@ -40,7 +39,7 @@ def _hash_file(p: Path) -> str:
 
 
 def _gather_paths(
-    grok_home: Path, include_sessions: bool, project_filter: Optional[str]
+    grok_home: Path, include_sessions: bool, project_filter: str | None
 ) -> list[tuple[Path, Path]]:
     """Return (src_abs, arcname_rel) pairs."""
     items: list[tuple[Path, Path]] = []
@@ -98,7 +97,7 @@ def _gather_paths(
 @app.command("create")
 def create_backup(
     ctx: typer.Context,
-    output: Optional[Path] = typer.Option(
+    output: Path | None = typer.Option(
         None,
         "--output",
         "-o",
@@ -107,7 +106,7 @@ def create_backup(
     include_sessions: bool = typer.Option(
         False, "--include-sessions", help="Include ALL session data (can be huge)"
     ),
-    projects: Optional[str] = typer.Option(
+    projects: str | None = typer.Option(
         None, "--projects", help="Comma separated project substrings (with --include-sessions)"
     ),
     compress: bool = typer.Option(True, "--compress/--no-compress"),
@@ -181,7 +180,7 @@ def restore_backup(
         True, "--dry-run/--no-dry-run", help="Show plan only (safe default)"
     ),
     force: bool = typer.Option(False, "--force", help="Overwrite existing files without asking"),
-    target: Optional[Path] = typer.Option(
+    target: Path | None = typer.Option(
         None, "--target", help="Restore into different Grok home (advanced)"
     ),
 ) -> None:

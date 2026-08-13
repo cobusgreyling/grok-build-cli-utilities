@@ -7,11 +7,11 @@ from pathlib import Path
 import typer
 
 from ..utils.common import (
+    Panel,
     console,
     get_grok_home,
     info,
     make_table,
-    Panel,
     warn,
 )
 
