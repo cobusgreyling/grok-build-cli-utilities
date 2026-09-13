@@ -18,6 +18,7 @@ from ..utils.common import (
     make_table,
     warn,
 )
+from ..utils.usage_display import bucket_cut_caption, shown_bucket_count
 
 
 def ascii_bar(value: float, maxv: float, width: int = 24) -> str:
@@ -44,6 +45,7 @@ def print_legacy_session_report(
     date_from: str | None,
     by: str,
     top: int,
+    show_all: bool = False,
     json_out: bool,
 ) -> None:
     """Session-summary report (messages/sessions — no list$/est$)."""
@@ -87,6 +89,9 @@ def print_legacy_session_report(
         rows.append((k, len(ss), msgs, last))
 
     rows.sort(key=lambda r: (-r[1], -r[2]))
+    shown_n = shown_bucket_count(len(rows), top, show_all)
+    shown = rows[:shown_n]
+    cut = bucket_cut_caption(shown_n, len(rows))
 
     if json_out:
         import json
@@ -100,17 +105,17 @@ def print_legacy_session_report(
                         "messages": r[2],
                         "last": r[3].isoformat() if r[3] else None,
                     }
-                    for r in rows[:top]
+                    for r in shown
                 ],
                 indent=2,
             )
         )
         return
 
-    title = f"Usage by {group_by} (legacy sessions/messages, top {top}, {len(sessions)} sessions)"
+    title = f"Usage by {group_by} (legacy sessions/messages, {cut}, {len(sessions)} sessions)"
     t = make_table(title, ["Key", "Sessions", "Messages", "Last Active", "Share"])
-    max_sess = max(r[1] for r in rows) or 1
-    for k, nsess, nmsg, last in rows[:top]:
+    max_sess = max((r[1] for r in shown), default=1) or 1
+    for k, nsess, nmsg, last in shown:
         share = ascii_bar(nsess, max_sess, 18)
         t.add_row(
             k[:48] + ("…" if len(k) > 48 else ""),
@@ -145,6 +150,7 @@ def print_cost_rough(
     since: str | None,
     by: str,
     top: int,
+    show_all: bool = False,
     json_out: bool,
 ) -> None:
     """Legacy message×400 × static MODEL_PRICES estimate."""
@@ -182,6 +188,9 @@ def print_cost_rough(
         rows.append((k, len(ss), round(est, 2)))
 
     rows.sort(key=lambda r: -r[2])
+    shown_n = shown_bucket_count(len(rows), top, show_all)
+    shown = rows[:shown_n]
+    cut = bucket_cut_caption(shown_n, len(rows))
 
     if json_out:
         import json
@@ -192,15 +201,18 @@ def print_cost_rough(
                     "mode": "rough",
                     "estimated_total_usd": round(total_est, 2),
                     "by": by,
-                    "top": rows[:top],
+                    "top": shown,
                 },
                 indent=2,
             )
         )
         return
 
-    t = make_table(f"Estimated Cost by {by} (ROUGH proxy, USD)", ["Key", "Sessions", "Est. $"])
-    for k, ns, est in rows[:top]:
+    t = make_table(
+        f"Estimated Cost by {by} (ROUGH proxy, USD, {cut})",
+        ["Key", "Sessions", "Est. $"],
+    )
+    for k, ns, est in shown:
         t.add_row(k[:48] + ("…" if len(k) > 48 else ""), str(ns), f"{est:.2f}")
     console.print(t)
     console.print(f"\n[bold]Grand total (rough proxy): ${total_est:.2f}[/bold]")

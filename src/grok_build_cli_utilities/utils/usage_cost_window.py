@@ -7,7 +7,8 @@ est$) → totals. Command modules only render.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from collections.abc import Iterable, Mapping
+from datetime import date, datetime, tzinfo
 from pathlib import Path
 from typing import Any
 
@@ -30,10 +31,12 @@ from .pricing import (
     resolve_topoff_discount,
 )
 from .usage_tokens import (
+    CreatedPr,
     UsageBucket,
     UsageRec,
     aggregate,
     bucket_key,
+    preferred_app_names,
     total_bucket,
 )
 
@@ -102,6 +105,9 @@ def build_token_cost_window(
     data_latest: date | None = None,
     result_earliest: date | None = None,
     result_latest: date | None = None,
+    prs_by_session: Mapping[str, Iterable[CreatedPr | str]] | None = None,
+    include_unlabeled: bool = False,
+    date_tz: tzinfo | None = None,
 ) -> TokenCostWindow:
     """Build list$/est$ for filtered records (shared by cost + report)."""
     # Omit --rates-model → prefer costUsdTicks (same $ as Build /usage Cost).
@@ -123,7 +129,15 @@ def build_token_cost_window(
         except (TypeError, ValueError):
             cfg_scale = None
 
-    buckets = aggregate(records, group)
+    app_names = preferred_app_names(records) if group == "app" else None
+    buckets = aggregate(
+        records,
+        group,
+        prs_by_session=prs_by_session,
+        include_unlabeled=include_unlabeled,
+        tz=date_tz,
+        app_names=app_names,
+    )
     tot = total_bucket(records)
     list_seed = tot.list_usd(rates, prefer_ticks=prefer_ticks)
 
@@ -144,7 +158,15 @@ def build_token_cost_window(
     fallback = auth_st.effective if auth_st.effective != "none" else "api_key"
 
     def _gkey(r: UsageRec) -> str:
-        return bucket_key(r, group)
+        k = bucket_key(
+            r,
+            group,
+            prs_by_session=prs_by_session,
+            include_unlabeled=include_unlabeled,
+            tz=date_tz,
+            app_names=app_names,
+        )
+        return k if k is not None else (r.session_id or "unknown")
 
     mix = estimate_with_auth_mix(
         records,

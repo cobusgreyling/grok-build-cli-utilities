@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+import re
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, tzinfo
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from rich.progress import Progress
 
@@ -17,6 +19,28 @@ from .pricing import TokenRates, api_estimate_usd, rates_for_model
 TICKS_PER_USD = 10_000_000_000
 # Prompt ≥ this many tokens bills the whole request at 2× list rates.
 LONG_CONTEXT_PROMPT_TOKENS = 200_000
+COST_GROUPS = (
+    "app",
+    "project",
+    "model",
+    "day",
+    "week",
+    "month",
+    "session",
+    "pr",
+    "none",
+)
+TOKEN_REPORT_GROUPS = ("app", "project", "model", "day", "session", "pr")
+_GH_PULL_URL = re.compile(
+    r"https://github\.com/([^/\s]+)/([^/\s]+)/pull/(\d+)\b",
+    re.IGNORECASE,
+)
+# GitHub closing keywords only. Do not treat prose "#58" as an issue.
+_ISSUE_KW = re.compile(
+    r"(?i)\b(?:fix(?:ed|es)?|close[sd]?|resolve[sd]?)\s*:?\s+"
+    r"(?:https://github\.com/[^/\s]+/[^/\s]+/issues/|(?:[\w.-]+/[\w.-]+)?#)"
+    r"(\d+)\b"
+)
 
 
 @dataclass
@@ -144,6 +168,127 @@ def parse_ts(obj: dict) -> datetime | None:
     return None
 
 
+_ISSUE_CLONE = re.compile(r"^(.+)-issue-(\d+)$", re.IGNORECASE)
+_GROK_WORKTREE = re.compile(
+    r"(?:^|/)\.grok/worktrees/github-([^/]+)/([^/]+)/?$",
+    re.IGNORECASE,
+)
+_SUBAGENT_LEAF = re.compile(r"^subagent-", re.IGNORECASE)
+_WORKTREE_LABEL = re.compile(r"\s*\(worktree\)\s*$", re.IGNORECASE)
+# github-znuttyone-ProfitGuard → ProfitGuard. All-lowercase slugs stay intact.
+_OWNER_THEN_REPO = re.compile(r"^[a-z0-9][a-z0-9-]*-([A-Z].+)$")
+
+
+def pretty_app_name(short: str, cwd: str = "") -> str:
+    """Unlabeled --by session Key. Issue clones stay repo#N. Does not roll up to the parent app."""
+    src = (short or "").strip()
+    text = (cwd or src).replace("\\", "/")
+    for cand in (Path(text).name, Path(src).name, src):
+        if not cand:
+            continue
+        m = _ISSUE_CLONE.match(cand)
+        if m:
+            return f"{m.group(1)}#{m.group(2)}"
+    m = _GROK_WORKTREE.search(text)
+    if m:
+        repo, label = m.group(1), m.group(2)
+        if _SUBAGENT_LEAF.match(label):
+            return f"{repo} (worktree)"
+        return f"{repo} ({label})"
+    return src
+
+
+@dataclass(frozen=True)
+class AppRepo:
+    """Product/repo inferred from a session cwd. No GitHub API."""
+
+    name: str
+    rank: int
+
+    @property
+    def group(self) -> str:
+        return self.name.casefold()
+
+
+def _path_parts(raw: str) -> list[str]:
+    text = (raw or "").replace("%2F", "/").replace("%2f", "/").replace("\\", "/")
+    return [p for p in text.split("/") if p and p != "."]
+
+
+def _strip_worktree_label(name: str) -> str:
+    return _WORKTREE_LABEL.sub("", (name or "").strip()).strip()
+
+
+def _repo_from_github_slug(slug: str) -> str:
+    text = (slug or "").strip()
+    if text.lower().startswith("github-"):
+        text = text[7:]
+    m = _OWNER_THEN_REPO.fullmatch(text)
+    if m:
+        return m.group(1)
+    return text
+
+
+def app_repo_from_cwd(cwd: str, *, fallback: str = "") -> AppRepo:
+    """Infer the product/repo from cwd. Higher rank wins when casefold-merging."""
+    parts = _path_parts(cwd)
+    for i, part in enumerate(parts):
+        if part.casefold() == "github" and i + 1 < len(parts):
+            leaf = _strip_worktree_label(parts[i + 1])
+            m = _ISSUE_CLONE.match(leaf)
+            if m:
+                return AppRepo(m.group(1), 30)
+            return AppRepo(leaf, 40)
+    for part in reversed(parts):
+        m = _ISSUE_CLONE.match(_strip_worktree_label(part))
+        if m:
+            return AppRepo(m.group(1), 30)
+    for i, part in enumerate(parts):
+        if not part.lower().startswith("github-") or len(part) <= 7:
+            continue
+        if i > 0 and parts[i - 1].casefold() == "worktrees":
+            return AppRepo(_repo_from_github_slug(part), 20)
+    leaf = _strip_worktree_label(parts[-1] if parts else fallback)
+    if not leaf:
+        leaf = _strip_worktree_label(fallback)
+    m = _ISSUE_CLONE.match(leaf)
+    if m:
+        return AppRepo(m.group(1), 0)
+    head, sep, num = leaf.rpartition("#")
+    if sep and num.isdigit() and head and "/" not in head:
+        return AppRepo(head, 0)
+    labeled = re.match(r"^(.+?)\s+\([^)]+\)\s*$", leaf)
+    if labeled:
+        return AppRepo(labeled.group(1), 0)
+    return AppRepo(leaf or (fallback or "unknown").strip() or "unknown", 0)
+
+
+def app_repo_name(cwd: str, short: str = "") -> str:
+    """--by app Key: repo inferred from cwd (issue and Grok worktrees roll up)."""
+    return app_repo_from_cwd(cwd, fallback=short).name
+
+
+def _prefer_app_repo(new: AppRepo, old: AppRepo) -> bool:
+    if new.rank != old.rank:
+        return new.rank > old.rank
+    new_mixed = new.name != new.name.lower()
+    old_mixed = old.name != old.name.lower()
+    if new_mixed != old_mixed:
+        return new_mixed
+    return False
+
+
+def preferred_app_names(records: Iterable[UsageRec]) -> dict[str, str]:
+    """casefold → display spelling. Prefer GitHub/ folder, then repo-issue-N, then slug."""
+    best: dict[str, AppRepo] = {}
+    for r in records:
+        ident = app_repo_from_cwd(r.cwd or r.project)
+        prev = best.get(ident.group)
+        if prev is None or _prefer_app_repo(ident, prev):
+            best[ident.group] = ident
+    return {fold: ident.name for fold, ident in best.items()}
+
+
 def project_from_path(updates_path: Path) -> tuple[str, str]:
     """Return (short_app_name, decoded_cwd_or_parent)."""
     parent = updates_path.parent.parent
@@ -154,7 +299,375 @@ def project_from_path(updates_path: Path) -> tuple[str, str]:
         short = decoded.split("GitHub/")[-1].rstrip("/")
     else:
         short = Path(decoded).name or name
-    return short, cwd
+    return pretty_app_name(short, cwd), cwd
+
+
+@dataclass(frozen=True)
+class CreatedPr:
+    """One github create_pull_request / gh pr create success."""
+
+    owner: str
+    repo: str
+    pr: int
+    issue: int | None = None
+
+    @property
+    def display_num(self) -> int:
+        return int(self.issue) if self.issue is not None else int(self.pr)
+
+    @property
+    def identity(self) -> str:
+        if self.owner and self.repo:
+            return f"{self.owner}/{self.repo}#{int(self.pr)}"
+        return f"#{int(self.pr)}"
+
+    @property
+    def label(self) -> str:
+        """Human id: repo#issue when Fixes is present, else repo#PR. No GitHub owner."""
+        n = self.display_num
+        if self.repo:
+            return f"{self.repo}#{n}"
+        return f"#{n}"
+
+
+def _issue_from_text(*texts: str) -> int | None:
+    for t in texts:
+        if not t:
+            continue
+        m = _ISSUE_KW.search(t)
+        if m:
+            n = int(m.group(1))
+            if n > 0:
+                return n
+    return None
+
+
+def created_pr_from_label(s: str) -> CreatedPr:
+    text = str(s or "").strip()
+    left, sep, num = text.rpartition("#")
+    pr = int(num) if sep and num.isdigit() else 0
+    owner, repo = "", left
+    if "/" in left:
+        owner, repo = left.split("/", 1)
+    return CreatedPr(owner=owner, repo=repo, pr=pr or 0, issue=None)
+
+
+def _as_created_prs(prs: Iterable[CreatedPr | str]) -> list[CreatedPr]:
+    out: list[CreatedPr] = []
+    seen: set[str] = set()
+    for item in prs:
+        p = item if isinstance(item, CreatedPr) else created_pr_from_label(str(item))
+        if p.pr <= 0 and p.display_num <= 0:
+            continue
+        ident = p.identity
+        if ident in seen:
+            continue
+        seen.add(ident)
+        out.append(p)
+    out.sort(key=lambda p: (p.display_num, p.pr, p.repo.lower(), p.owner.lower()))
+    return out
+
+
+def sorted_pr_labels(labels: Iterable[CreatedPr | str]) -> list[str]:
+    return [p.label for p in _as_created_prs(labels)]
+
+
+def short_session_id(session_id: str, *, n: int = 8) -> str:
+    if len(session_id) <= n:
+        return session_id
+    return session_id[:n] + "…"
+
+
+def _collision_id(ident: str, *, n: int = 8) -> str:
+    s = ident
+    if _SUBAGENT_LEAF.match(s):
+        s = s.split("-", 1)[1]
+    return short_session_id(s, n=n)
+
+
+def disambiguate_display_keys(idents: list[str], labels: list[str]) -> list[str]:
+    """Suffix a short id only when two table rows would share a Key."""
+    counts: dict[str, int] = {}
+    for lab in labels:
+        counts[lab] = counts.get(lab, 0) + 1
+    out: list[str] = []
+    for ident, lab in zip(idents, labels, strict=True):
+        if counts[lab] > 1:
+            out.append(f"{lab} · {_collision_id(ident)}")
+        else:
+            out.append(lab)
+    return out
+
+
+def _compact_pr_key(created: list[CreatedPr]) -> str:
+    """Repo #N,N groups, repos ordered by the smallest issue/PR number."""
+    by_repo: dict[str, list[int]] = {}
+    first: dict[str, int] = {}
+    for p in created:
+        repo = p.repo or "repo"
+        by_repo.setdefault(repo, []).append(int(p.display_num))
+        n = int(p.display_num)
+        prev = first.get(repo)
+        first[repo] = n if prev is None else min(prev, n)
+    parts: list[str] = []
+    for repo in sorted(by_repo, key=lambda r: (first[r], r.lower())):
+        nums = ",".join(str(n) for n in sorted(set(by_repo[repo])))
+        parts.append(f"{repo} #{nums}")
+    return " · ".join(parts)
+
+
+def pr_group_key(session_id: str, prs: Iterable[CreatedPr | str]) -> str | None:
+    """Table/JSON key for --by pr. Issue and PR numbers in numeric order. Never a session UUID."""
+    created = _as_created_prs(prs)
+    if not created:
+        return None
+    if len(created) == 1:
+        p = created[0]
+        if p.issue is not None and p.issue != p.pr:
+            return f"{p.label}→#{p.pr}"
+        return p.label
+    return _compact_pr_key(created)
+
+
+def session_display_key(
+    session_id: str,
+    prs: Iterable[CreatedPr | str],
+    *,
+    project: str = "",
+) -> str:
+    """Human table key for --by session. Repo/issues, not a UUID."""
+    created = _as_created_prs(prs)
+    if created:
+        head = pr_group_key(session_id, created)
+        if head:
+            return head
+    app = pretty_app_name((project or "").strip())
+    if app:
+        return app
+    return session_id
+
+
+UNSPLIT_MULTI_PR_NOTE = "Keys with several PRs are one session; tokens are not split."
+
+
+def _bare_tool_name(name: str) -> str:
+    n = str(name or "").strip()
+    if n.startswith("github__"):
+        return n[len("github__") :]
+    return n
+
+
+def _as_text(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    if isinstance(value, list):
+        if value and all(isinstance(x, int) for x in value[:4]):
+            try:
+                return bytes(value).decode("utf-8", errors="replace")
+            except (TypeError, ValueError):
+                pass
+        return "\n".join(_as_text(x) for x in value)
+    if isinstance(value, dict):
+        parts: list[str] = []
+        for k in ("OkayOutput", "output_for_prompt", "output", "content"):
+            if k in value:
+                parts.append(_as_text(value[k]))
+        if parts:
+            return "\n".join(parts)
+        try:
+            return json.dumps(value)
+        except (TypeError, ValueError):
+            return str(value)
+    return str(value)
+
+
+def _pr_from_github_object(obj: dict) -> CreatedPr | None:
+    """Top-level GitHub PR JSON only (body text cites other PRs)."""
+    number = obj.get("number")
+    html_raw = obj.get("html_url")
+    html = html_raw if isinstance(html_raw, str) else ""
+    owner, repo = "", ""
+    m = _GH_PULL_URL.search(html)
+    if m:
+        owner, repo = m.group(1), m.group(2)
+        if number is None:
+            number = int(m.group(3))
+    if number is None:
+        url_raw = obj.get("url")
+        api = url_raw if isinstance(url_raw, str) else ""
+        am = re.search(r"/repos/([^/]+)/([^/]+)/pulls/(\d+)\b", api)
+        if am:
+            owner, repo = owner or am.group(1), repo or am.group(2)
+            number = int(am.group(3))
+    try:
+        n = int(number)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    if n <= 0:
+        return None
+    title = obj.get("title") if isinstance(obj.get("title"), str) else ""
+    body = obj.get("body") if isinstance(obj.get("body"), str) else ""
+    issue = _issue_from_text(str(body or ""), str(title or ""))
+    return CreatedPr(owner=owner, repo=repo, pr=n, issue=issue)
+
+
+def _pr_from_create_payload(blob: object) -> CreatedPr | None:
+    if isinstance(blob, dict):
+        if "OkayOutput" in blob:
+            return _pr_from_create_payload(blob.get("OkayOutput"))
+        if "number" in blob or "html_url" in blob:
+            return _pr_from_github_object(blob)
+        inner = blob.get("output") if isinstance(blob.get("output"), (dict, str)) else None
+        if inner is not None:
+            return _pr_from_create_payload(inner)
+        return None
+    if not isinstance(blob, str) or not blob.strip():
+        return None
+    text = blob.strip()
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        data = None
+    if isinstance(data, dict):
+        return _pr_from_create_payload(data)
+    return None
+
+
+def _mcp_tool_name(update: dict) -> str:
+    raw = update.get("rawOutput")
+    if isinstance(raw, dict):
+        name = str(raw.get("tool_name") or "")
+        if name:
+            return name
+    title = str(update.get("title") or "")
+    if title:
+        return title
+    raw_in = update.get("rawInput")
+    if isinstance(raw_in, dict):
+        return str(raw_in.get("tool_name") or "")
+    return ""
+
+
+def _bash_command(update: dict) -> str:
+    raw = update.get("rawOutput")
+    if isinstance(raw, dict):
+        cmd = raw.get("command")
+        if isinstance(cmd, str) and cmd:
+            return cmd
+    raw_in = update.get("rawInput")
+    if isinstance(raw_in, dict):
+        cmd = raw_in.get("command")
+        if isinstance(cmd, str) and cmd:
+            return cmd
+    title = str(update.get("title") or "")
+    return title
+
+
+def _bash_stdout(raw: object) -> str:
+    if not isinstance(raw, dict):
+        return _as_text(raw)
+    parts: list[str] = []
+    for k in ("output_for_prompt", "output"):
+        if k in raw:
+            parts.append(_as_text(raw[k]))
+    return "\n".join(parts)
+
+
+def _prs_from_gh_stdout(stdout: str) -> list[CreatedPr]:
+    found: list[CreatedPr] = []
+    seen: set[str] = set()
+    for m in _GH_PULL_URL.finditer(stdout or ""):
+        p = CreatedPr(owner=m.group(1), repo=m.group(2), pr=int(m.group(3)))
+        if p.identity not in seen:
+            seen.add(p.identity)
+            found.append(p)
+    return found
+
+
+def pr_creates_from_update(update: dict) -> list[CreatedPr]:
+    """Created PRs from a completed create_pull_request or ``gh pr create`` update."""
+    if not isinstance(update, dict):
+        return []
+    if update.get("sessionUpdate") != "tool_call_update":
+        return []
+    status = update.get("status")
+    if status not in (None, "", "completed"):
+        return []
+    raw = update.get("rawOutput")
+    bare = _bare_tool_name(_mcp_tool_name(update))
+    if bare == "create_pull_request":
+        payload: object
+        if isinstance(raw, dict):
+            payload = raw.get("output", raw)
+        else:
+            payload = raw
+        pr = _pr_from_create_payload(payload)
+        return [pr] if pr else []
+    if bare and bare != "create_pull_request":
+        if "gh pr create" not in _bash_command(update):
+            return []
+    cmd = _bash_command(update)
+    if "gh pr create" in cmd:
+        created = _prs_from_gh_stdout(_bash_stdout(raw))
+        issue = _issue_from_text(cmd)
+        if issue is not None and len(created) == 1:
+            p = created[0]
+            created = [CreatedPr(owner=p.owner, repo=p.repo, pr=p.pr, issue=issue)]
+        return created
+    if isinstance(raw, str) and "create_pull_request_review" not in raw:
+        if "create_pull_request" in raw or "OkayOutput" in raw:
+            pr = _pr_from_create_payload(raw)
+            return [pr] if pr else []
+    return []
+
+
+def pr_labels_from_update(update: dict) -> list[str]:
+    """Display labels from a completed create_pull_request or ``gh pr create`` update."""
+    return [p.label for p in pr_creates_from_update(update)]
+
+
+def scan_pr_creates(updates_path: Path) -> set[str]:
+    """Created PR labels in one updates.jsonl (create_pull_request / gh pr create only)."""
+    found: set[str] = set()
+    try:
+        f = updates_path.open("r", encoding="utf-8", errors="ignore")
+    except OSError:
+        return found
+    with f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            params = obj.get("params") or {}
+            update = params.get("update") or {}
+            found.update(pr_labels_from_update(update))
+    return found
+
+
+def _remember_prs(
+    dest: dict[str, dict[str, CreatedPr]],
+    session_ids: Iterable[str],
+    prs: Iterable[CreatedPr],
+) -> None:
+    created = [p for p in prs if p.pr > 0]
+    if not created:
+        return
+    for sid in session_ids:
+        if not sid:
+            continue
+        bucket = dest.setdefault(sid, {})
+        for p in created:
+            prev = bucket.get(p.identity)
+            if prev is None or (prev.issue is None and p.issue is not None):
+                bucket[p.identity] = p
 
 
 def _primary_model_from_usage(usage: dict) -> str:
@@ -185,14 +698,21 @@ def load_turn_usage(
     sessions_dir: Path,
     *,
     progress: Progress | None = None,
+    prs_by_session: dict[str, dict[str, CreatedPr]] | None = None,
 ) -> list[UsageRec]:
-    """Load and dedupe turn_completed usage events from all sessions."""
+    """Load and dedupe turn_completed usage events from all sessions.
+
+    When ``prs_by_session`` is passed, fill it with created PRs per session
+    (github ``create_pull_request`` / ``gh pr create`` only). Inner map is
+    identity (owner/repo#PR) -> CreatedPr.
+    """
     paths = list(iter_turn_usage_files(sessions_dir))
     task = None
     if progress and paths:
         task = progress.add_task("Scanning turn usage...", total=len(paths))
 
     by_prompt: dict[str, UsageRec] = {}
+    prs = prs_by_session
     for path in paths:
         project, cwd = project_from_path(path)
         session_fallback = path.parent.name
@@ -215,6 +735,11 @@ def load_turn_usage(
                     continue
                 params = obj.get("params") or {}
                 update = params.get("update") or {}
+                if prs is not None:
+                    created = pr_creates_from_update(update)
+                    if created:
+                        sid = str(params.get("sessionId") or session_fallback)
+                        _remember_prs(prs, (sid, session_fallback), created)
                 if update.get("sessionUpdate") != "turn_completed":
                     continue
                 usage = update.get("usage")
@@ -253,17 +778,77 @@ def load_turn_usage(
     return sorted(by_prompt.values(), key=lambda r: r.ts)
 
 
+def local_tz() -> tzinfo:
+    """Process-local zone (the machine in front of you)."""
+    tz = datetime.now().astimezone().tzinfo
+    return tz if tz is not None else timezone.utc
+
+
+def parse_date_tz(name: str) -> tzinfo:
+    """Parse ``local``, ``UTC``, or an IANA zone name."""
+    key = name.strip()
+    if not key or key.lower() == "local":
+        return local_tz()
+    if key.upper() == "UTC":
+        return timezone.utc
+    try:
+        return ZoneInfo(key)
+    except (ZoneInfoNotFoundError, KeyError, ValueError) as exc:
+        raise ValueError(
+            f"unknown timezone {name!r} (use local, UTC, or an IANA name such as America/New_York)"
+        ) from exc
+
+
+def date_tz_label(raw: str | None) -> str:
+    """Stable JSON/help label for the calendar zone that was requested."""
+    if raw is None:
+        return "local"
+    key = raw.strip()
+    if not key or key.lower() == "local":
+        return "local"
+    if key.upper() == "UTC":
+        return "UTC"
+    return key
+
+
+def resolve_usage_date_tz(
+    *,
+    cli: str | None = None,
+    config: str | None = None,
+) -> tuple[tzinfo, str]:
+    """CLI ``--tz`` wins over ``[usage] date_tz``. Default is local."""
+    chosen: str | None = None
+    if isinstance(cli, str) and cli.strip():
+        chosen = cli
+    elif isinstance(config, str) and config.strip():
+        chosen = config
+    return parse_date_tz(chosen or "local"), date_tz_label(chosen)
+
+
+def usage_local_dt(ts: datetime, tz: tzinfo) -> datetime:
+    """Convert a turn timestamp into the usage calendar zone."""
+    aware = ts if ts.tzinfo is not None else ts.replace(tzinfo=timezone.utc)
+    return aware.astimezone(tz)
+
+
+def usage_calendar_date(ts: datetime, tz: tzinfo) -> date:
+    """Calendar date of a turn in the usage zone. Do not use UTC ``.date()``."""
+    return usage_local_dt(ts, tz).date()
+
+
 def filter_usage(
     records: list[UsageRec],
     *,
     date_from: date | None = None,
     date_to: date | None = None,
     apps: list[str] | None = None,
+    tz: tzinfo | None = None,
 ) -> list[UsageRec]:
+    zone = tz if tz is not None else local_tz()
     out: list[UsageRec] = []
     needles = [a.lower() for a in apps] if apps else None
     for r in records:
-        d = r.ts.date()
+        d = usage_calendar_date(r.ts, zone)
         if date_from is not None and d < date_from:
             continue
         if date_to is not None and d > date_to:
@@ -277,28 +862,70 @@ def filter_usage(
     return out
 
 
-def bucket_key(r: UsageRec, group: str) -> str:
-    if group in ("app", "project"):
-        # app = short folder name; project = full cwd (disambiguates same name in different paths)
-        return r.project if group == "app" else (r.cwd or r.project)
+def bucket_key(
+    r: UsageRec,
+    group: str,
+    *,
+    prs_by_session: Mapping[str, Iterable[CreatedPr | str]] | None = None,
+    include_unlabeled: bool = False,
+    tz: tzinfo | None = None,
+    app_names: Mapping[str, str] | None = None,
+) -> str | None:
+    if group == "app":
+        ident = app_repo_from_cwd(r.cwd or r.project)
+        if app_names:
+            return app_names.get(ident.group, ident.name)
+        return ident.name
+    if group == "project":
+        return r.cwd or r.project
     if group == "model":
         return r.model or "unknown"
-    if group == "day":
-        return r.ts.date().isoformat()
-    if group == "week":
-        iso = r.ts.isocalendar()
-        return f"{iso.year}-W{iso.week:02d}"
-    if group == "month":
-        return f"{r.ts.year}-{r.ts.month:02d}"
+    if group in ("day", "week", "month"):
+        local = usage_local_dt(r.ts, tz if tz is not None else local_tz())
+        if group == "day":
+            return local.date().isoformat()
+        if group == "week":
+            iso = local.isocalendar()
+            return f"{iso.year}-W{iso.week:02d}"
+        return f"{local.year}-{local.month:02d}"
+    if group == "session":
+        return r.session_id or "unknown"
+    if group == "pr":
+        created = _as_created_prs((prs_by_session or {}).get(r.session_id, ()))
+        key = pr_group_key(r.session_id or "unknown", created)
+        if key is None and include_unlabeled:
+            return r.session_id or "unknown"
+        return key
     if group == "none":
         return "all"
     raise ValueError(f"Unknown group: {group}")
 
 
-def aggregate(records: list[UsageRec], group: str) -> list[UsageBucket]:
+def aggregate(
+    records: list[UsageRec],
+    group: str,
+    *,
+    prs_by_session: Mapping[str, Iterable[CreatedPr | str]] | None = None,
+    include_unlabeled: bool = False,
+    tz: tzinfo | None = None,
+    app_names: Mapping[str, str] | None = None,
+) -> list[UsageBucket]:
+    zone = tz if tz is not None else local_tz()
+    names = app_names
+    if group == "app" and names is None:
+        names = preferred_app_names(records)
     m: dict[str, UsageBucket] = {}
     for r in records:
-        k = bucket_key(r, group)
+        k = bucket_key(
+            r,
+            group,
+            prs_by_session=prs_by_session,
+            include_unlabeled=include_unlabeled,
+            tz=zone,
+            app_names=names,
+        )
+        if k is None:
+            continue
         if k not in m:
             m[k] = UsageBucket(key=k)
         m[k].add(r)

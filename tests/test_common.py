@@ -75,6 +75,28 @@ def test_make_table_basic():
     assert t is not None
 
 
+def test_make_table_key_ellipsis_no_phantom_row():
+    from io import StringIO
+
+    from rich.console import Console
+
+    t = make_table("Cost", ["Key", "Prm", "Tokens"], no_wrap=("Key",))
+    t.add_row("widgets #7,8,12,14,15 · notes #16,18,19,20,22", "2", "16.4M")
+    t.add_row("notes#22 · 01a05e3c…", "1", "1.0M")
+    buf = StringIO()
+    # height is required: Rich 15 ignores width alone when TERM is dumb (local).
+    Console(file=buf, width=40, height=24, force_terminal=True, color_system=None).print(t)
+    lines = [ln.rstrip() for ln in buf.getvalue().splitlines() if ln.strip()]
+    data = [ln for ln in lines if "16.4M" in ln or "1.0M" in ln]
+    assert len(data) == 2
+    assert all(len(ln) <= 40 for ln in lines)
+    blob = "\n".join(lines)
+    assert "widgets#14" not in blob
+    assert "notes #16" not in blob
+    assert t.columns[0].no_wrap is True
+    assert t.columns[0].overflow == "ellipsis"
+
+
 def test_skill_template_and_validate():
     md = skill_template("test-skill", "Does amazing things for testing")
     assert "name: test-skill" in md

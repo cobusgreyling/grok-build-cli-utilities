@@ -11,6 +11,8 @@ grok-utils usage report --by app --from 2026-08-01 && grok-utils sessions list -
 
 # Find expensive recent work
 grok-utils usage cost --by app --from 2026-08-01
+grok-utils usage cost --by session --from 2026-08-01
+grok-utils usage cost --by pr --from 2026-08-01
 
 # Clean up after deleting a worktree
 cd /path/to/parent/repo

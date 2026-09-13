@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import tzinfo
 from typing import Any
 
 from .auth_status import (
@@ -20,6 +21,28 @@ from .pricing import (
 )
 from .usage_cost_window import TokenCostWindow
 from .usage_tokens import UsageBucket
+
+DEFAULT_BUCKET_TOP = 10
+
+
+def shown_bucket_count(n_buckets: int, top: int, show_all: bool) -> int:
+    """How many ranked buckets to print. --all wins; --top 0 prints none."""
+    if show_all:
+        return n_buckets
+    return min(n_buckets, max(0, top))
+
+
+def bucket_cut_caption(shown: int, total: int) -> str:
+    if shown >= total:
+        return f"all {total}"
+    return f"top {shown} of {total}"
+
+
+def print_bucket_cut_note(shown: int, total: int) -> None:
+    if shown >= total:
+        return
+    cap = bucket_cut_caption(shown, total)
+    console.print(f"[dim]{cap} · TOTALS is the whole window · --all to see all[/dim]")
 
 
 def fmt_tokens(n: int) -> str:
@@ -248,18 +271,20 @@ def week_list_series(
     rates: TokenRates,
     *,
     prefer_ticks: bool = True,
+    tz: tzinfo | None = None,
 ) -> list[tuple[str, float]]:
     """ISO-week list$ totals for variance context (oldest → newest)."""
     from collections import defaultdict
 
-    from .usage_tokens import turn_list_usd
+    from .usage_tokens import local_tz, turn_list_usd, usage_local_dt
 
+    zone = tz if tz is not None else local_tz()
     by_week: dict[str, float] = defaultdict(float)
     for r in records:
         ts = getattr(r, "ts", None)
         if ts is None:
             continue
-        iso = ts.isocalendar()
+        iso = usage_local_dt(ts, zone).isocalendar()
         key = f"{iso.year}-W{iso.week:02d}"
         by_week[key] += float(turn_list_usd(r, rates, prefer_ticks=prefer_ticks))
     return sorted(by_week.items(), key=lambda kv: kv[0])

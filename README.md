@@ -129,6 +129,8 @@ grok-utils backup restore ... --no-dry-run --force
 ```bash
 grok-utils usage report --by app --from 2026-08-01          # list$/est$ (default)
 grok-utils usage cost --from 2026-08-01 --by app -m grok-4.6 -P
+grok-utils usage cost --from 2026-08-01 --by session
+grok-utils usage cost --from 2026-08-01 --by pr
 grok-utils auth status                                       # Extra Credits + weekly %
 grok-utils usage top-projects
 grok-utils usage timeline --days 21
@@ -187,6 +189,8 @@ grok-utils config show
 grok-utils config paths
 grok-utils logs tail --level error -n 20
 grok-utils usage cost --from 2026-08-01 --to 2026-08-05 --by app --api-estimate
+grok-utils usage cost --from 2026-08-01 --by session
+grok-utils usage cost --from 2026-08-01 --by pr
 grok-utils usage cost --invoice-usd 180 --fixed-usd 30 --by app
 grok-utils usage report --by app --from 2026-08-01
 # list$/est$ by day (here --tokens is required):
