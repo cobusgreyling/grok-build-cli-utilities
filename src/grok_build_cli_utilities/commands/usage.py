@@ -54,6 +54,7 @@ from ..utils.usage_tokens import (
     UsageRec,
     allocate_invoice,
     disambiguate_display_keys,
+    filter_created_prs,
     filter_usage,
     list_price_usd,
     load_turn_usage,
@@ -214,6 +215,7 @@ def _load_filtered_usage(
         )
 
     filtered = filter_usage(records, date_from=d_from, date_to=d_to, apps=apps, tz=tz)
+    prs_by_session = filter_created_prs(prs_by_session, date_from=d_from, date_to=d_to, tz=tz)
     return filtered, d_from, d_to, earliest, latest, prs_by_session
 
 
@@ -259,11 +261,12 @@ def _display_bucket_key(
     width: int,
     projects_by_session: dict[str, str] | None = None,
 ) -> str:
-    if group == "session":
+    projects = projects_by_session or {}
+    if group == "session" or (group == "pr" and key in projects):
         shown = session_display_key(
             key,
             prs_by_session.get(key, ()),
-            project=(projects_by_session or {}).get(key, ""),
+            project=projects.get(key, ""),
         )
     else:
         shown = key
@@ -632,7 +635,8 @@ def cost_report(
             "mixed-repo keys compact (widgets #7,8,14 · notes #15); "
             "colliding Keys keep two rows (notes#22 · 01a05e3c…); "
             "no session UUID in the pr key; "
-            "sessions with no created PR are omitted unless --include-unlabeled"
+            "Keys are creates in the --from/--to window; "
+            "sessions with no create in the window are omitted unless --include-unlabeled"
         ),
     ),
     top: int = typer.Option(DEFAULT_BUCKET_TOP, "--top", metavar="N", help=_TOP_HELP),
@@ -746,8 +750,8 @@ def cost_report(
         False,
         "--include-unlabeled",
         help=(
-            "Flag (no value): with --by pr, also show sessions that never created a PR "
-            "(keyed by session id). Default omit."
+            "Flag (no value): with --by pr, also show sessions with no PR create "
+            "in the date window (pretty Key, not older PRs). Default omit."
         ),
     ),
 ) -> None:
@@ -806,8 +810,10 @@ def cost_report(
     get_pull_request do not count. Fixes or Closes in the create body
     puts the issue number in the Key.
 
-    --by pr lists every created PR. Unlabeled --by session Keys still
-    pretty-print repo-issue-N clones as repo#N.
+    --by pr Keys are creates in the --from/--to window (same local calendar
+    as turns). Sessions with no create in the window are omitted unless
+    --include-unlabeled (pretty Key, not older PRs). Unlabeled --by session
+    Keys still pretty-print repo-issue-N clones as repo#N.
 
     See: grok-utils usage info
     """

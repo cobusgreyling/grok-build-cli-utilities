@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Iterable, Iterator, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timezone, tzinfo
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -310,6 +310,7 @@ class CreatedPr:
     repo: str
     pr: int
     issue: int | None = None
+    ts: datetime | None = None
 
     @property
     def display_num(self) -> int:
@@ -666,8 +667,13 @@ def _remember_prs(
         bucket = dest.setdefault(sid, {})
         for p in created:
             prev = bucket.get(p.identity)
-            if prev is None or (prev.issue is None and p.issue is not None):
+            if prev is None:
                 bucket[p.identity] = p
+                continue
+            issue = p.issue if p.issue is not None else prev.issue
+            ts = p.ts if p.ts is not None else prev.ts
+            if issue != prev.issue or ts != prev.ts:
+                bucket[p.identity] = replace(prev, issue=issue, ts=ts)
 
 
 def _primary_model_from_usage(usage: dict) -> str:
@@ -704,7 +710,8 @@ def load_turn_usage(
 
     When ``prs_by_session`` is passed, fill it with created PRs per session
     (github ``create_pull_request`` / ``gh pr create`` only). Inner map is
-    identity (owner/repo#PR) -> CreatedPr.
+    identity (owner/repo#PR) -> CreatedPr. Each CreatedPr.ts is ``parse_ts``
+    of that updates.jsonl line (same clock as turns).
     """
     paths = list(iter_turn_usage_files(sessions_dir))
     task = None
@@ -738,6 +745,9 @@ def load_turn_usage(
                 if prs is not None:
                     created = pr_creates_from_update(update)
                     if created:
+                        ts = parse_ts(obj)
+                        if ts is not None:
+                            created = [replace(p, ts=ts) for p in created]
                         sid = str(params.get("sessionId") or session_fallback)
                         _remember_prs(prs, (sid, session_fallback), created)
                 if update.get("sessionUpdate") != "turn_completed":
@@ -859,6 +869,38 @@ def filter_usage(
             if not any(n in pl or n in cl or pl in n for n in needles):
                 continue
         out.append(r)
+    return out
+
+
+def filter_created_prs(
+    prs_by_session: Mapping[str, Iterable[CreatedPr | str]],
+    *,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    tz: tzinfo | None = None,
+) -> dict[str, list[CreatedPr]]:
+    """Keep creates whose local calendar date is in ``[date_from, date_to]``.
+
+    No bounds means the lifetime list. Creates with no timestamp are dropped
+    when a bound is set (same clock as turns).
+    """
+    zone = tz if tz is not None else local_tz()
+    bounded = date_from is not None or date_to is not None
+    out: dict[str, list[CreatedPr]] = {}
+    for sid, prs in prs_by_session.items():
+        kept: list[CreatedPr] = []
+        for p in _as_created_prs(prs):
+            if bounded:
+                if p.ts is None:
+                    continue
+                d = usage_calendar_date(p.ts, zone)
+                if date_from is not None and d < date_from:
+                    continue
+                if date_to is not None and d > date_to:
+                    continue
+            kept.append(p)
+        if kept:
+            out[sid] = kept
     return out
 
 
