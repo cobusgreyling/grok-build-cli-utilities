@@ -114,7 +114,7 @@ title: grok-utils
           <div class="flex -space-x-1">
             <div class="w-6 h-6 bg-zinc-800 border border-zinc-700 rounded-full"></div>
           </div>
-          <span><strong class="text-zinc-400">Sole author &amp; maintainer:</strong> Cobus Greyling</span>
+          <span><strong class="text-zinc-400">Maintainer:</strong> Cobus Greyling</span>
         </div>
       </div>
 

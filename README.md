@@ -25,7 +25,7 @@ A powerful, batteries-included collection of command-line tools that make you dr
 
 **New in 0.4.0+**: token-accurate `usage cost` / `usage report` with **list$ + path/regime est$**, **`--plan-advisor`**, wallet snapshot, open-ended dates, FAQ (`usage info`).
 
-**Sole author & maintainer:** Cobus Greyling
+**Maintainer:** Cobus Greyling
 
 > **📖 Full documentation**: [https://cobusgreyling.github.io/grok-build-cli-utilities/](https://cobusgreyling.github.io/grok-build-cli-utilities/) — command reference, examples, philosophy and more.
 
@@ -205,7 +205,7 @@ These bring rich views for the maturing plugins/hooks ecosystem, cost awareness,
 
 ## Philosophy & Design
 
-- **Sole author**: Every commit is by Cobus Greyling. No bots, no drive-by PRs, no other contributors.
+- **Maintainer-driven**: Cobus Greyling maintains the project. Community PRs are welcome after reading CONTRIBUTING.md.
 - **Safe first**: Anything that can delete or overwrite defaults to `--dry-run`.
 - **Beautiful & fast**: Rich tables, progress bars on big scans, instant on cached summaries.
 - **Scriptable**: Every command that makes sense supports `--json`.
@@ -271,6 +271,13 @@ Real terminal output is best experienced live (`grok-utils usage report`, `sessi
 - Self-apply: add a `grok-utils-dev` skill for this repo's own development workflow.
 
 This project is primarily maintainer-driven, but high-quality, well-tested contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+
+---
+
+## Contributors
+
+- Cobus Greyling — author and maintainer
+- Community PRs from [@znuttyone](https://github.com/znuttyone)
 
 ---
 

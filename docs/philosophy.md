@@ -1,6 +1,6 @@
 # Philosophy & Design
 
-This project is **maintainer-driven** (sole author: Cobus Greyling). High-quality, well-tested contributions are welcome after reading [CONTRIBUTING.md](https://github.com/cobusgreyling/grok-build-cli-utilities/blob/main/CONTRIBUTING.md).
+This project is **maintainer-driven** (maintainer: Cobus Greyling). High-quality, well-tested contributions are welcome after reading [CONTRIBUTING.md](https://github.com/cobusgreyling/grok-build-cli-utilities/blob/main/CONTRIBUTING.md).
 
 ## Core principles
 
