@@ -31,8 +31,8 @@ Grok Build and this tool show **different meters**. They will **not** match doll
 | Goal | Use |
 |---|---|
 | Which repo/day used the most? | `usage cost --by app` or `--by day` → **list$**. `--by app` rolls issue and Grok worktrees into the repo. |
-| Which Grok Build session? | `usage cost --by session` → **list$** (PR labels when that session created PRs) |
-| Which GitHub PR (1:1 session only)? | `usage cost --by pr` → **list$**. Multi-PR sessions stay one row. No GitHub API. |
+| Which Grok Build session? | `usage cost --by session` → **list$** (in-window PR labels, else pretty cwd) |
+| Which GitHub PR (1:1 session only)? | `usage cost --by pr` → **list$**. Keys are creates in `--from`/`--to`. Multi-PR sessions stay one row. No GitHub API. |
 | Session or PR Keys missing? | The Grok Build session did not report them. You still get `--by app`. See [Session and PR keys](#session-and-pr-keys). |
 | Extra-credit burn estimate | **est$** (regime-aware) or re-fit with `--prepaid-usd` + `--credits-remaining` |
 | “How heavy was this session?” | Build **Session Cost** |
@@ -148,7 +148,7 @@ topoff_discount_scenarios = [0.20, 0.25, 0.40]
 | `--by` | `app` \| `project` \| `model` \| `day` \| `week` \| `month` \| `session` \| `pr` |
 | `--top` | Top N buckets by list$ (default 10). |
 | `--all` | Print every bucket. Overrides `--top`. |
-| `--include-unlabeled` | With `--by pr`, also list sessions that never created a PR (keyed by session id). Default omit. |
+| `--include-unlabeled` | With `--by pr`, also list sessions with no PR create in the `--from`/`--to` window (pretty Key, not older PRs). Default omit. |
 | `-m` / `--rates-model` | Force a reconstructed rate table for **list$** (ignores ticks). Omit to use `/usage` Session Cost (`costUsdTicks÷1e10`). Fallback table: `grok-4.6` |
 | `--cash-scale` | Force uniform list$ → est$ scale (else path/regime defaults) |
 | `--prepaid-usd` / `--credits-remaining` | Set scale from wallet burn |
@@ -158,14 +158,14 @@ topoff_discount_scenarios = [0.20, 0.25, 0.40]
 | `--detail` / `-v` | Richer est$ mix + promo table + overage one-liner (FAQ still via `usage info`) |
 | `--json` | Machine-readable (`prepaid_balance_usd`, `weekly_usage_pct`, `weekly_resets_at`, …) |
 
-`--by session` buckets on the Grok Build `sessionId`. The table Key is the created-PR labels, or the project or app name when that session created none. JSON `key` stays the session id. Two sessions with the same Key stay two rows. The Key then gains a short session id (`notes#22 · 01a05e3c…`).
+`--by session` buckets on the Grok Build `sessionId`. The table Key is the created-PR labels in the `--from`/`--to` window, or the project or app name when that session created none in the window. JSON `key` stays the session id. Two sessions with the same Key stay two rows. The Key then gains a short session id (`notes#22 · 01a05e3c…`).
 
-`--by pr` attributes cost only from successful github `create_pull_request` tool output or `gh pr create` stdout (`https://github.com/owner/repo/pull/N`). It does not scrape chat text or `get_pull_request`.
+`--by pr` Keys are successful github `create_pull_request` tool output or `gh pr create` stdout (`https://github.com/owner/repo/pull/N`) whose create timestamp falls in `--from`/`--to` (same local calendar as turns). It does not scrape chat text or `get_pull_request`. Token totals already use that window. Keys use it too.
 
-- One created PR: the whole session list$ goes to `repo#N` (issue from `Fixes` or `Closes` when present).
-- Two or more, same repo: one row such as `widgets #12,15`. Tokens are not split. No session id in the key.
+- One created PR in the window: the whole session list$ goes to `repo#N` (issue from `Fixes` or `Closes` when present).
+- Two or more in the window, same repo: one row such as `widgets #12,15`. Tokens are not split. No session id in the key.
 - Mixed repos: `widgets #7,8,14 · notes #15`.
-- Zero created PRs: omitted unless `--include-unlabeled`.
+- No create in the window: omitted unless `--include-unlabeled` (pretty Key, not older PRs).
 - Multi-PR rows stay one session. The table prints `Keys with several PRs are one session; tokens are not split.`
 - The Key column does not wrap onto a fake extra row. Long Keys ellipsize.
 
@@ -185,7 +185,7 @@ Create each PR with github `create_pull_request` (OkayOutput fields `number` and
 
 Put `Fixes` or `Closes` in the create body so the Key includes the issue number.
 
-`--by pr` still lists every created PR across repos. Unlabeled `--by session` Keys still pretty-print `repo-issue-N` clones as `repo#N` so chats stay distinct.
+`--by pr` Keys are creates in the date window. Unlabeled `--by session` Keys still pretty-print `repo-issue-N` clones as `repo#N` so chats stay distinct.
 
 Issue clone on `--by session`: `notes-issue-9` becomes `notes#9`. Collision: `notes#22 · 01a05e3c…`.
 

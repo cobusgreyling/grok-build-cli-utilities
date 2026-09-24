@@ -496,6 +496,8 @@ def test_usage_info_and_cost_help_mention_cwd_and_native_pr_create():
     assert "inferred from cwd" in h
     assert "create_pull_request" in h
     assert "gh pr create" in h
+    assert "date window" in blob
+    assert "from/--to window" in _plain_cli(h)
 
 
 def test_allocate_paygo_sums_to_total(tmp_path: Path):
@@ -1606,6 +1608,220 @@ def test_usage_cost_by_pr_include_unlabeled(tmp_path: Path):
     keys = {b["key"] for b in data["buckets"]}
     assert "VCI#3" in keys
     assert "unlab" in keys
+
+
+def _stale_pr_session(grok: Path, *, sid: str = "s-stale") -> Path:
+    """Create widgets#12 on 2026-09-01; turns on 2026-09-01 and 2026-09-03."""
+    sess = grok / "sessions" / "widgets" / sid
+    upd = sess / "updates.jsonl"
+    _write_turn(
+        upd,
+        prompt_id="p-create-day",
+        ts="2026-09-01T12:00:00Z",
+        input_t=100,
+        output_t=10,
+        cached=0,
+        reasoning=0,
+        ticks=1_000_000_000,
+    )
+    _append_update(
+        upd,
+        _mcp_create_pr_update(session_id=sid, number=12, ts="2026-09-01T12:05:00Z"),
+    )
+    _write_turn(
+        upd,
+        prompt_id="p-later-day",
+        ts="2026-09-03T12:00:00Z",
+        input_t=100,
+        output_t=10,
+        cached=0,
+        reasoning=0,
+        ticks=2_000_000_000,
+    )
+    return upd
+
+
+def test_load_turn_usage_stamps_created_pr_ts(tmp_path: Path):
+    from grok_build_cli_utilities.utils.usage_tokens import CreatedPr
+
+    grok = tmp_path / ".grok"
+    _stale_pr_session(grok, sid="s-stale")
+    prs: dict[str, dict[str, CreatedPr]] = {}
+    recs = load_turn_usage(grok / "sessions", prs_by_session=prs)
+    assert len(recs) == 2
+    created = list(prs["s-stale"].values())
+    assert len(created) == 1
+    assert created[0].pr == 12
+    assert created[0].ts == datetime(2026, 9, 1, 12, 5, tzinfo=timezone.utc)
+
+
+def test_filter_created_prs_uses_usage_calendar():
+    from grok_build_cli_utilities.utils.usage_tokens import (
+        CreatedPr,
+        filter_created_prs,
+    )
+
+    ts_sep1 = datetime(2026, 9, 1, 12, 5, tzinfo=timezone.utc)
+    ts_sep3 = datetime(2026, 9, 3, 12, 5, tzinfo=timezone.utc)
+    raw = {
+        "s-stale": [CreatedPr("example", "widgets", pr=12, ts=ts_sep1)],
+        "s-today": [CreatedPr("example", "notes", pr=4, ts=ts_sep3)],
+    }
+    later = filter_created_prs(raw, date_from=date(2026, 9, 3), date_to=None, tz=timezone.utc)
+    assert "s-stale" not in later
+    assert [p.label for p in later["s-today"]] == ["notes#4"]
+    create_day = filter_created_prs(
+        raw,
+        date_from=date(2026, 9, 1),
+        date_to=date(2026, 9, 1),
+        tz=timezone.utc,
+    )
+    assert [p.label for p in create_day["s-stale"]] == ["widgets#12"]
+    assert "s-today" not in create_day
+    lifetime = filter_created_prs(raw)
+    assert set(lifetime) == {"s-stale", "s-today"}
+    undated = {"s": [CreatedPr("example", "widgets", pr=9)]}
+    assert filter_created_prs(undated, date_from=date(2026, 9, 3), tz=timezone.utc) == {}
+    assert "s" in filter_created_prs(undated)
+
+
+def test_usage_cost_pr_keys_follow_from_to_window(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    sid = "s-stale"
+    _stale_pr_session(grok, sid=sid)
+    base = ["-g", str(grok), "usage", "cost", "--tz", "UTC", "--json"]
+
+    r_pr_later = runner.invoke(app, [*base, "--from", "2026-09-03", "--by", "pr"])
+    assert r_pr_later.exit_code == 0, r_pr_later.output
+    later_blob = r_pr_later.output + r_pr_later.stderr
+    assert "No created PRs in this window" in later_blob
+    assert "widgets#12" not in later_blob
+
+    r_unlab = runner.invoke(
+        app, [*base, "--from", "2026-09-03", "--by", "pr", "--include-unlabeled"]
+    )
+    assert r_unlab.exit_code == 0, r_unlab.output
+    unlab = _json_from_cli(r_unlab)
+    assert len(unlab["buckets"]) == 1
+    assert unlab["buckets"][0]["key"] == sid
+    assert "prs" not in unlab["buckets"][0]
+    assert "widgets#12" not in json.dumps(unlab["buckets"])
+
+    r_sess = runner.invoke(app, [*base, "--from", "2026-09-03", "--by", "session"])
+    assert r_sess.exit_code == 0, r_sess.output
+    sess = _json_from_cli(r_sess)
+    assert len(sess["buckets"]) == 1
+    assert sess["buckets"][0]["key"] == sid
+    assert "prs" not in sess["buckets"][0]
+    r_sess_tbl = runner.invoke(
+        app,
+        [
+            "-g",
+            str(grok),
+            "usage",
+            "cost",
+            "--tz",
+            "UTC",
+            "--from",
+            "2026-09-03",
+            "--by",
+            "session",
+        ],
+    )
+    assert r_sess_tbl.exit_code == 0, r_sess_tbl.output
+    assert "widgets#12" not in _plain_cli(r_sess_tbl.output + r_sess_tbl.stderr)
+
+    r_pr_create_day = runner.invoke(
+        app, [*base, "--from", "2026-09-01", "--to", "2026-09-01", "--by", "pr"]
+    )
+    assert r_pr_create_day.exit_code == 0, r_pr_create_day.output
+    create_day = _json_from_cli(r_pr_create_day)
+    assert [b["key"] for b in create_day["buckets"]] == ["widgets#12"]
+    assert create_day["buckets"][0]["prs"] == ["widgets#12"]
+
+    r_app = runner.invoke(app, [*base, "--from", "2026-09-03", "--by", "app"])
+    assert r_app.exit_code == 0, r_app.output
+    app_data = _json_from_cli(r_app)
+    assert [b["key"] for b in app_data["buckets"]] == ["widgets"]
+    assert app_data["buckets"][0]["prompts"] == 1
+
+
+def test_usage_cost_by_pr_key_omits_creates_outside_window(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    sid = "s-mixed"
+    sess = grok / "sessions" / "widgets" / sid
+    upd = sess / "updates.jsonl"
+    _write_turn(
+        upd,
+        prompt_id="p-old",
+        ts="2026-09-01T12:00:00Z",
+        input_t=100,
+        output_t=10,
+        cached=0,
+        reasoning=0,
+        ticks=1_000_000_000,
+    )
+    _append_update(upd, _mcp_create_pr_update(session_id=sid, number=12, ts="2026-09-01T12:05:00Z"))
+    _write_turn(
+        upd,
+        prompt_id="p-new",
+        ts="2026-09-03T12:00:00Z",
+        input_t=100,
+        output_t=10,
+        cached=0,
+        reasoning=0,
+        ticks=2_000_000_000,
+    )
+    _append_update(upd, _mcp_create_pr_update(session_id=sid, number=15, ts="2026-09-03T12:05:00Z"))
+    base = ["-g", str(grok), "usage", "cost", "--tz", "UTC", "--json"]
+    later = _json_from_cli(runner.invoke(app, [*base, "--from", "2026-09-03", "--by", "pr"]))
+    assert [b["key"] for b in later["buckets"]] == ["widgets#15"]
+    assert later["buckets"][0]["prs"] == ["widgets#15"]
+    both = _json_from_cli(
+        runner.invoke(app, [*base, "--from", "2026-09-01", "--to", "2026-09-03", "--by", "pr"])
+    )
+    assert [b["key"] for b in both["buckets"]] == ["widgets #12,15"]
+    assert both["buckets"][0]["prs"] == ["widgets#12", "widgets#15"]
+
+
+def test_usage_cost_by_pr_window_keeps_unsplit_in_window_creates(tmp_path: Path):
+    grok = tmp_path / ".grok"
+    sid = "s-multi"
+    sess = grok / "sessions" / "widgets" / sid
+    upd = sess / "updates.jsonl"
+    _write_turn(
+        upd,
+        prompt_id="p1",
+        ts="2026-09-03T12:00:00Z",
+        input_t=100,
+        output_t=10,
+        cached=0,
+        reasoning=0,
+        ticks=5_000_000_000,
+    )
+    _append_update(upd, _mcp_create_pr_update(session_id=sid, number=12, ts="2026-09-03T12:05:00Z"))
+    _append_update(upd, _mcp_create_pr_update(session_id=sid, number=15, ts="2026-09-03T13:00:00Z"))
+    r = runner.invoke(
+        app,
+        [
+            "-g",
+            str(grok),
+            "usage",
+            "cost",
+            "--tz",
+            "UTC",
+            "--from",
+            "2026-09-03",
+            "--by",
+            "pr",
+            "--json",
+        ],
+    )
+    assert r.exit_code == 0, r.output
+    data = _json_from_cli(r)
+    assert len(data["buckets"]) == 1
+    assert data["buckets"][0]["key"] == "widgets #12,15"
+    assert data["buckets"][0]["prs"] == ["widgets#12", "widgets#15"]
 
 
 def test_session_display_key_has_no_uuid_when_labeled():

@@ -147,17 +147,20 @@ Grok Build and grok-utils show different *kinds* of money and tokens. None is
      folders, and Grok worktrees for that repo are one row (prompts/list$
      summed). Grouping is case-insensitive. Display prefers the GitHub/
      folder spelling. #N is not used on --by app.
-     --by pr lists every created issue/PR across repos (native creates only).
-     --by session is one row per Grok Build chat. Unlabeled session Keys
-     still pretty-print repo-issue-N clones as repo#N so chats stay distinct.
+     --by pr Keys are native creates in the date window (same local calendar
+     as turns). Sessions with no create in the window are omitted unless
+     --include-unlabeled (pretty Key, not older PRs).
+     --by session is one row per Grok Build chat. Key is in-window PRs when
+     any exist, else a pretty cwd. Unlabeled session Keys still pretty-print
+     repo-issue-N clones as repo#N so chats stay distinct.
 
   Q: Why is --by session or --by pr still the folder name?
   A: PR-level Keys and clean session labels appear only when the Grok Build
      session reports them. If you skip this, you still get --by app (the
      repo inferred from cwd).
        · One Grok Build session per unit of work. Several PRs from one parent
-         chat stay one unsplit --by pr row. Keys with several PRs are one
-         session; tokens are not split.
+         chat stay one unsplit --by pr row. Keys are creates in the date window.
+         Keys with several PRs are one session; tokens are not split.
        · Session cwd is the repo (or Grok worktree / repo-issue-N clone) for
          that work. Not an unrelated folder. --by app is the repo inferred
          from cwd. Issue worktree folders roll into the repo Key. A chat
